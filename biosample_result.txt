@@ -1,0 +1,111 @@
+1: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615743; Sample name: BSM4; SRA: SRS555991
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size multimale 3"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615743	ID: 2615743
+
+2: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615742; Sample name: BSM3; SRA: SRS555990
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size multimale 2"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615742	ID: 2615742
+
+3: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615741; Sample name: BSM1; SRA: SRS555989
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size multimale 1"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615741	ID: 2615741
+
+4: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615740; Sample name: BSA3; SRA: SRS555988
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size alone 3"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615740	ID: 2615740
+
+5: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615739; Sample name: BSA2; SRA: SRS555987
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size alone 2"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615739	ID: 2615739
+
+6: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615738; Sample name: BSA1; SRA: SRS555986
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="small size alone 1"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615738	ID: 2615738
+
+7: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615737; Sample name: BIM3; SRA: SRS555985
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="intermediate size multimale 2"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615737	ID: 2615737
+
+8: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615736; Sample name: BLM1; SRA: SRS555222
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="intermediate size multimale 1"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615736	ID: 2615736
+
+9: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615735; Sample name: BIA2; SRA: SRS555221
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="intermediate size alone 3"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615735	ID: 2615735
+
+10: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615734; Sample name: BLA1; SRA: SRS553034
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="intermediate size alone 2"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615734	ID: 2615734
+
+11: Sample from Poecilia latipinna
+Identifiers: BioSample: SAMN02615733; Sample name: BIA1; SRA: SRS551438
+Organism: Poecilia latipinna
+Attributes:
+    /phenotype="intermediate size alone 1"
+    /development stage="adult"
+    /sex="male"
+    /tissue="brain"
+Accession: SAMN02615733	ID: 2615733
+
+
