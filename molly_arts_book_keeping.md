@@ -6,6 +6,8 @@ The reads are 100 bp single end reads. `head -4 SRR1161450_1.fastq` gives:
 
 @SRR1161450.1 HWI-ST619:197:D0VKFACXX:6:1101:1073:1995 length=100 CAGNTTTAGTCCAAAGTTTCTATATACAGTCAGAGATGAAACAGTTCTGGGCTTGGCCAAGCTGAAAAGAGGCTTCAGCTCCAGCTGAGTTCATCATTTN +SRR1161450.1 HWI-ST619:197:D0VKFACXX:6:1101:1073:1995 length=100 B@C#4ADDHHHHHIJJHIJIJFIIJJJIJIJJJJJIJJHIJJJJGIJJJJJJJJJJJJJJJJJJHGIJJIJJHFHHFFFFFFEECEECB;CAACDDDEC#
 
+**Note**: It looks like there is a way to do all this just on TACC (not using your computer to download everything), although it would require building the software on TACC, which doesn't seem like it would be fun. There are brief instructions on how to install custom software to TACC under the "installing custom software" header on [this](https://wikis.utexas.edu/display/CoreNGSTools/Running+batch+jobs+at+TACC) page.
+
 --------------------------------------------------------------------------------
 
 ## quality filtering
@@ -113,50 +115,12 @@ What do the arguments mean?
 
 I am going to try submitting this job for 24 hours to three nodes (note that each node has 12 cores, 12 * 3 = 36, the number of threads in our call to `blastx` above.)
 
-`echo "blastx -query guppy_transcriptome -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out guppy_transcriptome.br" > blast` # make job script             
-`launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal` # create launcher file. note that this must do to the "normal" quene as the development queue has a time limit of 1 hour        
-`cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`      # substitute the wayness
-`qsub blast_job_36` # send it in
+`echo "blastx -query guppy_transcriptome -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out guppy_transcriptome.br" > blast` # make job script              
+`launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal` # create launcher file. note that this must do to the "normal" quene as the development queue has a time limit of 1 hour                
+`cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`      # substitute the wayness           
+`qsub blast_job_36` # send it in          
 
 
--------------------
-#### (next steps--from Misha's pipeline)
-
-unzipping      
-gunzip uniprot_sprot.fasta.gz &         
- [1] 17275         
-gunzip idmapping_selected.tab.gz &         
-[2] 17278         
-      
-indexing the fasta database         
-module load blast             
-echo "makeblastdb -in uniprot_sprot.fasta -dbtype prot" >mdb            
-launcher_creator.py -j mdb -n mdb -l mmm            
-qsub mmm           
- 
-splitting the transcriptome into 40 chunks     
-splitFasta.pl monti_coral_iso.fasta 40        
-
-blasting all 40 chunks to uniprot in parallel, 3 cores per chunk         
-module load blast           
-ls subset* | perl -pe 's/^(\S+)$/blastx -query $1 -db uniprot_sprot\.fasta              -evalue 0\.0001 -num_threads 3 -num_descriptions 5 -num_alignments 5 -out $1.br/'>bl            
-launcher_creator.py -j bl -n blast -l blj -q normal -t 24:00:00        
-cat blj | perl -pe 's/12way .+$/4way 120/' >bljj           
-qsub bljj           
- 
-watching progress:         
-grep "Query= " subset*.br | wc -l               
-
-if the blast did not finish in time, try splitting the transcriptome into 120 parts initially        
-
-combining all blast results       
-cat subset*br > myblast.br         
-rm subset*br            
-
-if you have no assembler-derived isogroups, use cd-hit-est to cluster contigs.        
-to look for 99% or better matches between contigs taking 30% of length of either longer or shorter sequence:         
-cd-hit-est -i monti_coral_iso.fasta -o transcriptome_clust.fasta -c 0.99 -G 0 -aL 0.3 -aS 0.3
------------------
 
 ---------------
 
