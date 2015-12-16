@@ -75,9 +75,11 @@ I first decided to use the guppy transcriptome:
 `gunzip trin_cuff_v14_cdhit90.fa.gz` #unzip it     
 `mv trin_cuff_v14_cdhit90.fa guppy_transcriptome` # rename it    
 
-The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). 
 
-
+### making transcriptome annotations
+ The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). 
+ 
+ 
 `echo "wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" > get_prot`        
 `launcher_creator.py -j get_prot -l get_prot -a Sailfin_RNASeq -q normal -t 1:00:00 -e lukereding@utexas.edu`          
 `qsub get_prot`           
