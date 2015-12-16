@@ -1,6 +1,6 @@
 # playing around with sailfin RNA-seq data from Fraser et al. 2014
 ## getting the data
-The data are stored on NCBI's short read archive, which is a terrible site. You cannot press a button or copy a link to download the raw data. I had to follow instructions [here](https://www.biostarhandbook.com/unit/sra/short-read-archive.html#sra). I first installed _sratoolkit_ on my Mac using Homebrew like `brew install sratoolkit`. I could then use the `prefetch` command to download the reads corresponding to each individual. I put the names of all the runs in a text document called runs, then I wrote a script, `download_short_read_in_par.sh`, to download the data in parrallel. Once the data are downloaded, they are in `.sra` format and not `.fastq` like you need them to be. So I wrote a second script, `sra_to_fastq.sh`, to convert each `.sra` file to `.fastq`, which takes a bit of time. Finally, I transferred all 11 fastq files to lonestar using `scp /path/to/fastq/files/*.fastq reding@lonestar.tacc.utexas.edu`.         
+The data are stored on NCBI's short read archive, which is a terrible site. You cannot press a button or copy a link to download the raw data. I had to follow instructions [here](https://www.biostarhandbook.com/unit/sra/short-read-archive.html#sra). I first installed _sratoolkit_ on my Mac using Homebrew like `brew install sratoolkit`. I could then use the `prefetch` command to download the reads corresponding to each individual. I put the names of all the runs in a text document called runs, then I wrote a script, `download_short_read_in_par.sh`, to download the data in parrallel (this script and others are in this repository). Once the data are downloaded, they are in `.sra` format and not `.fastq` like you need them to be. So I wrote a second script, `sra_to_fastq.sh`, to convert each `.sra` file to `.fastq`, which takes a bit of time. Finally, I transferred all 11 fastq files to lonestar using `scp /path/to/fastq/files/*.fastq reding@lonestar.tacc.utexas.edu`.         
 
 The reads are 100 bp single end reads. `head -4 SRR1161450_1.fastq` gives:
 
@@ -71,9 +71,9 @@ Adaptors at at the end of the read and anchor the read to the flow cell. There i
 ### getting a transcriptome
 
 I first decided to use the guppy transcriptome:       
-`wget ftp://ftp.tuebingen.mpg.de/ebio/publication_data/esharma/guppy_trans/trin_cuff_v14_cdhit90.fa.gz`        
-`gunzip trin_cuff_v14_cdhit90.fa.gz`      
-`mv trin_cuff_v14_cdhit90.fa guppy_transcriptome`     
+`wget ftp://ftp.tuebingen.mpg.de/ebio/publication_data/esharma/guppy_trans/trin_cuff_v14_cdhit90.fa.gz`   # download the transcriptome     
+`gunzip trin_cuff_v14_cdhit90.fa.gz` #unzip it     
+`mv trin_cuff_v14_cdhit90.fa guppy_transcriptome` # rename it    
 
 The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). 
 
@@ -86,6 +86,35 @@ Get the annotations next:
 `echo "wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/idmapping_selected.tab.gz" > get_go`       
 `launcher_creator.py -j get_go -l get_go -a Sailfin_RNASeq -q normal -t 4:00:00 -e lukereding@utexas.edu`
 `qsub get_go`
+
+
+For some reason this didn't work for me. TACC threw a bunch of errors into the output of STDERR. Instead, I downloaded each to my local machine. The first file, `uniprot_sprot.fasta.gz`, downloaded in like 10 seconds. The second file took about three minutes. Unzip each file with `gunzip`. `uniprot_sprot.fasta` is ~250 MB (a few seconds to transfer to TACC via `scp`) and the annotation file is almost 11 GB (~5 min to transfer to TACC via `scp`).        
+
+Next we have to index the uniprot fasta file:
+
+`module load blast` # load the blast module
+`echo "makeblastdb -in uniprot_sprot.fasta -dbtype prot" > make_index` # create job script         
+`launcher_creator.py -j make_index -n make_index -l index -a Sailfin_RNASeq -e lukereding@utexas.edu` # create launcher file          
+`qsub index` # submit job           
+
+The blast command looks something like this:
+
+`blastx -query guppy_transcriptome -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out guppy_transcriptome.br`        
+
+What do the arguments mean?      
+- query: the transcriptome you want to annotate. Misha does this by breaking up the transcriptome into a bunch of different pieces. I'm going to first try without doing this.       
+- db: the database to blast against, i.e., the swiss prot database       
+- evalue: e-value threshold for saving hits. Above is the same e-value that both Misha uses and the Fraser et al. paper uses.       
+- num_threads: number of threads or cores to use. default is 1       
+- num_descriptions: Number of database sequences to show one-line descriptions for (??)        
+- out: name of output file        
+
+I am going to try submitting this job for 24 hours to three nodes (note that each node has 12 cores, 12 * 3 = 36, the number of threads in our call to `blastx` above.)
+
+`echo "blastx -query guppy_transcriptome -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out guppy_transcriptome.br" > blast` # make job script             
+`launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal` # create launcher file. note that this must do to the "normal" quene as the development queue has a time limit of 1 hour        
+`cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`      # substitute the wayness
+`qsub blast_job_36` # send it in
 
 
 -------------------
