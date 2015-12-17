@@ -149,7 +149,7 @@ What do these files looks like now?
               
               
 `head transcriptome_seq2iso.tab`                 
-comp10004275477	isogroup10004275477
+>comp10004275477	isogroup10004275477
 comp10006275362	isogroup10006275362
 comp10006275360	isogroup10006275360
 comp10009275364	isogroup10009275364
@@ -173,16 +173,16 @@ ATGAAGGATGCAAGCAACAAAAGGGTGAGCAGATTGGTTAACGTGAAGCCCCTCACACCC
 TTTATGGTGCCAGATGTCATGTTGGCTTGGTGTCCAGCTCAGAAACAGGATCAGGTAACT
 
 `head -25 guppy_blast_results_corrected.br | tail -10`           
-Query= comp10004275477 gene=isogroup10004275477
-
-Length=357
-
-
-***** No hits found *****
-
-
-
-Lambda      K        H        a         alpha
+>Query= comp10004275477 gene=isogroup10004275477
+>
+>Length=357
+>
+>
+>***** No hits found *****
+>
+>
+>
+>Lambda      K        H        a         alpha
 
 
 
