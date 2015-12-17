@@ -129,22 +129,68 @@ Don't run these lines!
 `cat guppy_transcriptome.fasta | perl -pe 's/>(\S+).+/>$1 gene=isogroup$1/' >transcriptome_iso.fasta`             
 
       
-These lines don't work. For `transcriptome_seq2iso.tab`, we want to create a file two two columns: transcript ID and gene ID. Note that these lines will be different depending on what your fasta file looks like and how it's formatted.         
+These lines don't work. The goal: create a `transcriptome_seq2iso.tab` file that has one column representing trasncript ID and a second column with gene ID. I'm going to assume that 1 transcript = 1 gene. Then we want to create a transcriptome_iso.fasta file in which the headers are the same transcript ID, tab, then 'gene=geneID'. These must be the same as the names in the `transcriptome_seq2iso.tab` file. Finally, these names must match the 'Query = ' lines in the blast search results (the `.br` file that was generated from blast).
 
-`grep ">" guppy_transcriptome | cut -d"_" -f2,3 | sed 's,_m,,g' | sed 's,
-^,isotig,g' | sed 's,\.,\tisogroup,g' > transcriptome_seq2iso.tab`          
+`grep ">" guppy_transcriptome | cut -d"_" -f2,3 | sed 's,_m,,g' | sed 's,\([0-9]*\)\.\([0-9]*\),comp\1\2\tisogroup\1\2,' > transcriptome_seq2iso.tab`          
 
 
 Next we need to change the headers on the transcriptome. The new header is tab delimited two column of transcript ID and gene ID in the format 'gene=geneID'.       
 
-`cat guppy_transcriptome | sed 's,^>CUFF_\([0-9]*\),\1,g' | sed 's,_m\.\([0-9]*\), gene=\1,g' > transcriptome_iso.fasta`          
+`cat guppy_transcriptome | sed 's,^>CUFF_\([0-9]*\),>comp\1,g'  | sed 's,_m,,g' | sed 's,comp\([0-9]*\).\([0-9]*\),comp\1\2 gene=isogroup\1\2,g' > transcriptome_iso.fasta`          
+
+Finally, we change the blast search results; I save them under a new name, `guppy_blast_results_corrected.br`:          
+
+`cat *.br | sed 's,^Query= CUFF_\([0-9]*\),Query= \1,g' | sed 's,_m.,,g' | sed 's,^Query= \([
+0-9]*\),Query= comp\1 gene=isogroup\1,g' > guppy_blast_results_corrected.br`          
+
+
+
+What do these files looks like now?           
+              
+              
+`head transcriptome_seq2iso.tab`                 
+comp10004275477	isogroup10004275477
+comp10006275362	isogroup10006275362
+comp10006275360	isogroup10006275360
+comp10009275364	isogroup10009275364
+comp10013275481	isogroup10013275481
+comp10015275438	isogroup10015275438
+comp10016275544	isogroup10016275544
+comp10017275428	isogroup10017275428
+comp10018327682	isogroup10018327682
+comp10017252	isogroup10017252
+
+`head transcriptome_iso.fasta`             
+>comp10004275477 gene=isogroup10004275477
+ATGTGCACACCTGATGTTGCTCACAGGGGTCCTCGGTGTGCTCAGGGAGCTTGTGTATAC
+GCCCAGACGCATGAAAAATTAGAGGGAACATTGGTCGGTTCGCTTCTCTTTTCCTCCACA
+CCTGAACTTACCTGTCCGCCCTCCACCTCAGCCTCCACATCACCTACAAAGAACTCACTC
+CATCAAGACCTCACACTGGAACCAGGACCACTTCAAGGAGACCCACCAAGGGATCATACT
+TTGGGAACCACTGTATTACCCCCCCGGCGGAAGTCTATCTTCATATCAAGTAAAATCAAT
+TTAATTTTTCCTGAAGTTCCATTTTCCATAAAGAGTAAAATTATTGTGATGGAATGA
+>comp10006275362 gene=isogroup10006275362
+ATGAAGGATGCAAGCAACAAAAGGGTGAGCAGATTGGTTAACGTGAAGCCCCTCACACCC
+TTTATGGTGCCAGATGTCATGTTGGCTTGGTGTCCAGCTCAGAAACAGGATCAGGTAACT
+
+`head -25 guppy_blast_results_corrected.br | tail -10`           
+Query= comp10004275477 gene=isogroup10004275477
+
+Length=357
+
+
+***** No hits found *****
+
+
+
+Lambda      K        H        a         alpha
+
 
 
 Because we are using a previously assembled transcriptome, we don't need to use _cd hit_ to estimate isogroups (genes), the next step in his pipeline.     
 
 Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to right click the link that leads to the Perl script on Github and copy the link address, then use `wget` on TACC to download it to your directory. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
 
-`echo "getGeneNameFromUniProtKB.pl blast=guppy_transcriptome.br prefix=transcriptome fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
+`echo "getGeneNameFromUniProtKB.pl blast=guppy_transcriptome.br prefix=guppy fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
 `launcher_creator.py -j get_gene_names -n get_gene_names -l gene_names -a Sailfin_RNASeq -e lukereding@utexas.edu`               
 `qsub gene_names`             
 
