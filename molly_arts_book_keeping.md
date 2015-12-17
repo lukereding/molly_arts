@@ -79,6 +79,7 @@ I first decided to use the guppy transcriptome:
 
 
 ### making transcriptome annotations
+#### doing the blasts
  The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). Note that I'm transitioning here from using the walkthrough provided [here](https://wikis.utexas.edu/display/bioiteam/Introduction+to+RNA+Seq+Course+2015) to Misha's workflow, which can be found [here](https://github.com/z0on/annotatingTranscriptomes/blob/6751534ed87b0893242be97adfd00de1012a08a3/annotating%20trascriptome.txt)
  
  
@@ -122,14 +123,17 @@ I am going to try submitting this job for 24 hours to three nodes (note that eac
 
 This took roughly 8 hours to run.     
 
+
+--------------------
+#### processing blast results
 According to Misha's, script: "if there are no components or isogroups in your transcriptome, create fake isogroup designations (=contigs)". The alternative to this is to use Trinity to assemble a transcriptome _de novo_, which we could do but don't want to do. I ran these lines according to his script:      
 
-Don't run these lines!          
+>Don't run these lines!          
 `grep ">" guppy_transcriptome.fasta | perl -pe 's/>(\S+)\s.+/$1\tisogroup$1/' >transcriptome_seq2iso.tab`            
 `cat guppy_transcriptome.fasta | perl -pe 's/>(\S+).+/>$1 gene=isogroup$1/' >transcriptome_iso.fasta`             
 
       
-These lines don't work. The goal: create a `transcriptome_seq2iso.tab` file that has one column representing trasncript ID and a second column with gene ID. I'm going to assume that 1 transcript = 1 gene. Then we want to create a transcriptome_iso.fasta file in which the headers are the same transcript ID, tab, then 'gene=geneID'. These must be the same as the names in the `transcriptome_seq2iso.tab` file. Finally, these names must match the 'Query = ' lines in the blast search results (the `.br` file that was generated from blast).
+These lines don't work. The goal: create a `transcriptome_seq2iso.tab` file that has one column representing trasncript ID and a second column with gene ID. I'm going to assume that 1 transcript = 1 gene. Then we want to create a `transcriptome_iso.fasta` file in which the headers are the same transcript ID, tab, then 'gene=geneID'. These must be the same as the names in the `transcriptome_seq2iso.tab` file. Finally, these names must match the 'Query = ' lines in the blast search results (the `.br` file that was generated from blast).
 
 `grep ">" guppy_transcriptome | cut -d"_" -f2,3 | sed 's,_m,,g' | sed 's,\([0-9]*\)\.\([0-9]*\),comp\1\2\tisogroup\1\2,' > transcriptome_seq2iso.tab`          
 
@@ -149,7 +153,7 @@ What do these files looks like now?
               
               
 `head transcriptome_seq2iso.tab`                 
->comp10004275477	isogroup10004275477
+>comp10004275477	isogroup10004275477       
 comp10006275362	isogroup10006275362
 comp10006275360	isogroup10006275360
 comp10009275364	isogroup10009275364
@@ -167,7 +171,7 @@ GCCCAGACGCATGAAAAATTAGAGGGAACATTGGTCGGTTCGCTTCTCTTTTCCTCCACA
 CCTGAACTTACCTGTCCGCCCTCCACCTCAGCCTCCACATCACCTACAAAGAACTCACTC
 CATCAAGACCTCACACTGGAACCAGGACCACTTCAAGGAGACCCACCAAGGGATCATACT
 TTGGGAACCACTGTATTACCCCCCCGGCGGAAGTCTATCTTCATATCAAGTAAAATCAAT
-TTAATTTTTCCTGAAGTTCCATTTTCCATAAAGAGTAAAATTATTGTGATGGAATGA
+TTAATTTTTCCTGAAGTTCCATTTTCCATAAAGAGTAAAATTATTGTGATGGAATGA             
 >comp10006275362 gene=isogroup10006275362
 ATGAAGGATGCAAGCAACAAAAGGGTGAGCAGATTGGTTAACGTGAAGCCCCTCACACCC
 TTTATGGTGCCAGATGTCATGTTGGCTTGGTGTCCAGCTCAGAAACAGGATCAGGTAACT
@@ -188,9 +192,9 @@ TTTATGGTGCCAGATGTCATGTTGGCTTGGTGTCCAGCTCAGAAACAGGATCAGGTAACT
 
 Because we are using a previously assembled transcriptome, we don't need to use _cd hit_ to estimate isogroups (genes), the next step in his pipeline.     
 
-Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to right click the link that leads to the Perl script on Github and copy the link address, then use `wget` on TACC to download it to your directory. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
+Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to download the repository from github and use `scp` to transfer it to TACC. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
 
-`echo "getGeneNameFromUniProtKB.pl blast=guppy_transcriptome.br prefix=guppy fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
+`echo "getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
 `launcher_creator.py -j get_gene_names -n get_gene_names -l gene_names -a Sailfin_RNASeq -e lukereding@utexas.edu`               
 `qsub gene_names`             
 
@@ -198,4 +202,5 @@ Next, we want to use the results from our blast to extract the gene names for ea
 ---------------
 
 ### from the supplemental materials:
+_*for reference:*_         
 _(a) RNA-seq data collection and analysis RNA was extracted from whole brain tissue using RNeasy Lipid Tissue Mini Kit (Qiagen Hilden, Germany). We prepared separate RNA sequencing libraries from whole brains for each individual, using unique index sequences from the Illumina Tru-Seq RNA kit following manufacturers instructions. Sequencing libraries were constructed and sequenced on three lanes of an Illumina HiSeq 2000 at the HudsonAlpha Genomic Services Laboratory (Huntsville, Alabama) in April 2012. The reference P. reticulata assembly was constructed from a data set containing > 450 million 100-bp paired end reads, which were filtered for high quality sequence and normalized in-silico to compress the range in kmer abundance. We used SeqMan NGEN 4.1.2 (Madison, WI) [74,75] to perform the assembly. Contigs from the assembly were annotated by blastx queries against SwissProt (database downloaded Oct 6, 2012), UniProt/Trembl (Nov 28, 2012), and nr (Dec 11, 2012). Default parameters were used in the blastx queries, with e-value cutoff of 10-4 . The assembly and individual reads will be deposited in a publicly-available archive before publication. Reads were mapped to the reference assembly using Bowtie 2 v 2.0.0 on a server running Red Hat Enterprise Linux 6.1. We used a seed size of 20 bp, with no mismatches allowed in the seed (run options: -D 15 -R 2 -N 0 -L 20 -i S,1,0.75). We retained mappings with quality scores > 30 (< 0.001 probability that the read maps elsewhere in the reference), and applied an abundance filter to retain only transcripts represented by more than 1 count per million reads in at least three samples. This filtering resulted in 31,869 transcripts remaining in the data set. We used the number of reads mapping to each of those transcripts, along with TMM-normalized library sizes [76] to analyse differential expression. We obtained 462,537,724 100-bp reads that passed the machine quality filter, with 26,527,622 to 51,801,664 reads per sample, and average quality >35.7 for all samples. After removing low-abundance transcripts, 357,203,972 reads (76.1%) mapped to 31,869 unique transcripts in the reference transcriptome (see Supplementary Table S2 for sample-specific read data). We assumed a negative binomial distribution for the count data and the log link function [77]. We used likelihood ratios based on Type III estimable functions to evaluate the significance of fixed effects. To adjust for multiple tests, we used the adaptive falsediscovery rates of Benjamini & Hochberg [78], as implemented in SAS Proc Multtest, and FDR<0.05 as the criterion for significance, except as noted. General and generalized linear model were implemented in SAS v. 9.3 [60] running under Linux 2.6.32._
