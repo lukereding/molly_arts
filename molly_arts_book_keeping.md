@@ -79,7 +79,7 @@ I first decided to use the guppy transcriptome:
 
 
 ### making transcriptome annotations
- The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). 
+ The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). Note that I'm transitioning here from using the walkthrough provided [here](https://wikis.utexas.edu/display/bioiteam/Introduction+to+RNA+Seq+Course+2015) to Misha's workflow, which can be found [here](https://github.com/z0on/annotatingTranscriptomes/blob/6751534ed87b0893242be97adfd00de1012a08a3/annotating%20trascriptome.txt)
  
  
 `echo "wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" > get_prot`        
@@ -118,8 +118,35 @@ I am going to try submitting this job for 24 hours to three nodes (note that eac
 `echo "blastx -query guppy_transcriptome -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out guppy_transcriptome.br" > blast` # make job script              
 `launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal` # create launcher file. note that this must do to the "normal" quene as the development queue has a time limit of 1 hour                
 `cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`      # substitute the wayness           
-`qsub blast_job_36` # send it in          
+`qsub blast_job_36` # send it in           
 
+This took roughly 8 hours to run.     
+
+According to Misha's, script: "if there are no components or isogroups in your transcriptome, create fake isogroup designations (=contigs)". The alternative to this is to use Trinity to assemble a transcriptome _de novo_, which we could do but don't want to do. I ran these lines according to his script:      
+
+Don't run these lines!          
+`grep ">" guppy_transcriptome.fasta | perl -pe 's/>(\S+)\s.+/$1\tisogroup$1/' >transcriptome_seq2iso.tab`            
+`cat guppy_transcriptome.fasta | perl -pe 's/>(\S+).+/>$1 gene=isogroup$1/' >transcriptome_iso.fasta`             
+
+      
+These lines don't work. For `transcriptome_seq2iso.tab`, we want to create a file two two columns: transcript ID and gene ID. Note that these lines will be different depending on what your fasta file looks like and how it's formatted.         
+
+`grep ">" guppy_transcriptome | cut -d"_" -f2,3 | sed 's,_m,,g' | sed 's,
+^,isotig,g' | sed 's,\.,\tisogroup,g' > transcriptome_seq2iso.tab`          
+
+
+Next we need to change the headers on the transcriptome. The new header is tab delimited two column of transcript ID and gene ID in the format 'gene=geneID'.       
+
+`cat guppy_transcriptome | sed 's,^>CUFF_\([0-9]*\),\1,g' | sed 's,_m\.\([0-9]*\), gene=\1,g' > transcriptome_iso.fasta`          
+
+
+Because we are using a previously assembled transcriptome, we don't need to use _cd hit_ to estimate isogroups (genes), the next step in his pipeline.     
+
+Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to right click the link that leads to the Perl script on Github and copy the link address, then use `wget` on TACC to download it to your directory. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
+
+`echo "getGeneNameFromUniProtKB.pl blast=guppy_transcriptome.br prefix=transcriptome fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
+`launcher_creator.py -j get_gene_names -n get_gene_names -l gene_names -a Sailfin_RNASeq -e lukereding@utexas.edu`               
+`qsub gene_names`             
 
 
 ---------------
