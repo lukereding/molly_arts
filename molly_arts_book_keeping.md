@@ -270,7 +270,26 @@ Submit the job:
 
 We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy. 
 
-for file in SRR*.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done
+`for file in SRR*.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done`
+
+Launch it:     
+`launcher_creator.py -j bam_commands -n bam_commands_job -l bam_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00` 
+`qsub bam_commands_job`
+
+
+Now we can assess mapping quality for the reads from each individual like:
+
+`samtools flagstat SRR1165201_1.bam`
+
+-----------------
+
+## gene counting
+
+
+`module load bedtools`        
+`bedtools`          
+`bedtools multicov`     
+
 
 
 ---------------
