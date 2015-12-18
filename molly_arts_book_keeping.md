@@ -194,7 +194,7 @@ TTTATGGTGCCAGATGTCATGTTGGCTTGGTGTCCAGCTCAGAAACAGGATCAGGTAACT
 
 Because we are using a previously assembled transcriptome, we don't need to use _cd hit_ to estimate isogroups (genes), the next step in his pipeline.     
 
-Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to download the repository from github and use `scp` to transfer it to TACC. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
+Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to download the repository from github and use `scp` to transfer it to TACC. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script. Note also that you need to include the word `perl` before the name of the script; `which perl` yeilds `/opt/apps/perl/5.14/bin/perl`, not `/usr/bin/perl/` which in the shebang of Misha's script.
 
 `perl getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta` 
 
@@ -228,6 +228,7 @@ Next we want to extract to GO terms associated with each gene:
 `perl getGOfromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=transcriptome fastaQuery=transcriptome_iso.fasta`
 
 Let's look at the file that results:          
+
 `head transcriptome_iso2go.tab`
 
 >	GO:0001533;GO:0005737;GO:0030057;GO:0070062;GO:0045111;GO:0030674;GO:0005198;GO:0008544;GO:0031424;GO:0030216;GO:0018149
@@ -245,18 +246,32 @@ isogroup2834526737	GO:0005789;GO:0016021;GO:0050660;GO:0004499;GO:0050661
 ------------------
 ## mapping
 
-Meanwhile, I should have been trying to map the reads to the guppy genome. I'll follow the example on the RNA seq walkthrough and use BWA to map. Let's first index the guppy transcriptome:=
+Meanwhile, I should have been trying to map the reads to the guppy genome. I'll follow the example on the RNA seq walkthrough and use BWA to map. Let's first index the guppy transcriptome:
 
-`module load bwa`        
+`module load bwa/0.7.7`        
 `echo "bwa index -a bwtsw transcriptome_iso.fasta" > index_guppy`
 `launcher_creator.py -j index_guppy -n index_guppy_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`           
        
 Now let's make the mapping commands using BWA-MEM:    
 
-`for file in *.filtered; do echo "bwa mem transcriptome_iso.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`
-`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 12:00:00`
-`cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript` 
-`qsub mapping_commands_jobscript`
+Create job file.       
+`for file in *.filtered; do echo "bwa mem transcriptome_iso.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`           
+
+Create launcher.        
+`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 12:00:00` 
+
+Substitute wayness so that things run faster:          
+`cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
+Submit the job:         
+`qsub mapping_commands_jobscript`            
+
+---------------
+## SAM conversion, sorting, and indexing
+
+We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy. 
+
+for file in SRR*.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done
+
 
 ---------------
 
