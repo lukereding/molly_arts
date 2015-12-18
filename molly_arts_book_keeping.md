@@ -148,6 +148,8 @@ Finally, we change the blast search results; I save them under a new name, `gupp
 0-9]*\),Query= comp\1 gene=isogroup\1,g' > guppy_blast_results_corrected.br`          
 
 
+cat *.br | sed 's,^Query= CUFF_\([0-9]*\),Query= \1,g' | sed 's,_m.,,g' | sed 's,^Query= \([0-9]*\),Query=  gene=isogroup\1,g' > test.br
+
 
 What do these files looks like now?           
               
@@ -194,10 +196,67 @@ Because we are using a previously assembled transcriptome, we don't need to use 
 
 Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to download the repository from github and use `scp` to transfer it to TACC. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script.
 
-`echo "getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta" >get_gene_names`         
-`launcher_creator.py -j get_gene_names -n get_gene_names -l gene_names -a Sailfin_RNASeq -e lukereding@utexas.edu`               
-`qsub gene_names`             
+`perl getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta` 
 
+`head guppy_iso2hit.tab`
+>sp|Q92817|EVPL_HUMAN	1e-180
+isogroup20402102620	sp|P26990|ARF6_CHICK	3e-127
+isogroup50792238338	sp|P35072|TCB1_CAEBR	3e-15
+isogroup18699303674	sp|A1L390|PKHG3_HUMAN	3e-178
+isogroup3307930504	sp|P11279|LAMP1_HUMAN	3e-61
+isogroup1679495026	sp|P34205|PHR_CARAU	1e-13
+isogroup1681895243	sp|Q92536|YLAT2_HUMAN	7e-76
+isogroup36729173669	sp|Q91453|STXB_SYNHO	6e-22
+isogroup18931304870	sp|Q8QZR1|ATTY_MOUSE	1e-20
+isogroup2834526737	sp|Q04799|FMO5_RABIT	2e-100
+
+
+`head guppy_iso2gene.tab`
+>	Envoplakin OS=Homo sapiens GN=EVPL PE=1 SV=3 E(blastx)=1e-180
+isogroup20402102620	ADP-ribosylation factor 6 OS=Gallus gallus GN=ARF6 PE=2 SV=3 E(blastx)=3e-127
+isogroup50792238338	Transposable element Tcb1 transposase OS=Caenorhabditis briggsae PE=3 SV=1 E(blastx)=3e-15
+isogroup18699303674	Pleckstrin homology domain-containing family G member 3 OS=Homo sapiens GN=PLEKHG3 PE=1 SV=1 E(blastx)=3e-178
+isogroup3307930504	Lysosome-associated membrane glycoprotein 1 OS=Homo sapiens GN=LAMP1 PE=1 SV=3 E(blastx)=3e-61
+isogroup1679495026	Deoxyribodipyrimidine photo-lyase OS=Carassius auratus GN=phr PE=2 SV=1 E(blastx)=1e-13
+isogroup1681895243	Y+L amino acid transporter 2 OS=Homo sapiens GN=SLC7A6 PE=1 SV=3 E(blastx)=7e-76
+isogroup36729173669	Stonustoxin subunit beta OS=Synanceia horrida PE=1 SV=3 E(blastx)=6e-22
+isogroup18931304870	Tyrosine aminotransferase OS=Mus musculus GN=Tat PE=1 SV=1 E(blastx)=1e-20
+isogroup2834526737	Dimethylaniline monooxygenase [N-oxide-forming] 5 OS=Oryctolagus cuniculus GN=FMO5 PE=1 SV=2 E(blastx)=2e-100
+
+Next we want to extract to GO terms associated with each gene:
+
+`perl getGOfromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=transcriptome fastaQuery=transcriptome_iso.fasta`
+
+Let's look at the file that results:          
+`head transcriptome_iso2go.tab`
+
+>	GO:0001533;GO:0005737;GO:0030057;GO:0070062;GO:0045111;GO:0030674;GO:0005198;GO:0008544;GO:0031424;GO:0030216;GO:0018149
+isogroup20402102620	GO:0005938;GO:0005737;GO:0030139;GO:0005768;GO:0070062;GO:0031527;GO:0005925;GO:0005794;GO:0043209;GO:0005886;GO:0055038;GO:0001726;GO:0005525;GO:0030866;GO:0090162;GO:0097284;GO:0001889;GO:0033028;GO:0030838;GO:0090004;GO:0034394;GO:0036010;GO:0015031;GO:0060998;GO:0051489;GO:0035020;GO:0031529;GO:0007264;GO:0016192
+isogroup50792238338	GO:0005634;GO:0003677;GO:0015074;GO:0006313
+isogroup18699303674	GO:0005089;GO:0035023
+isogroup3307930504	GO:0097208;GO:0044194;GO:0005737;GO:0030425;GO:0010008;GO:0009897;GO:0070062;GO:0005887;GO:0005770;GO:0005764;GO:0042470;GO:0016020;GO:0005771;GO:0043025;GO:0048471;GO:0061474;GO:0005886;GO:0042383;GO:0008021;GO:0019899;GO:0001618;GO:0048102;GO:0006914;GO:0072594;GO:0090160;GO:0008626;GO:0043323;GO:0045954;GO:0050821;GO:1902513
+isogroup1679495026	GO:0003904;GO:0003677;GO:0006281;GO:0018298
+isogroup1681895243	GO:0016323;GO:0005887;GO:0005886;GO:0015171;GO:0015297;GO:0015179;GO:0003333;GO:0006865;GO:0007596;GO:0006520;GO:0006811;GO:1902475;GO:0015807;GO:0050900;GO:0006461;GO:0055085;GO:0006810
+isogroup36729173669	GO:0005576;GO:0044179
+isogroup18931304870	GO:0005739;GO:0016597;GO:0080130;GO:0004838;GO:0030170;GO:0006103;GO:0009058;GO:0006536;GO:0006559;GO:0051384;GO:0046689;GO:0006979;GO:0006572
+isogroup2834526737	GO:0005789;GO:0016021;GO:0050660;GO:0004499;GO:0050661
+
+
+------------------
+## mapping
+
+Meanwhile, I should have been trying to map the reads to the guppy genome. I'll follow the example on the RNA seq walkthrough and use BWA to map. Let's first index the guppy transcriptome:=
+
+`module load bwa`        
+`echo "bwa index -a bwtsw transcriptome_iso.fasta" > index_guppy`
+`launcher_creator.py -j index_guppy -n index_guppy_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`           
+       
+Now let's make the mapping commands using BWA-MEM:    
+
+`for file in *.filtered; do echo "bwa mem transcriptome_iso.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`
+`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 12:00:00`
+`cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript` 
+`qsub mapping_commands_jobscript`
 
 ---------------
 
