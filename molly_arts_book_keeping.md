@@ -258,7 +258,7 @@ Create job file.
 `for file in *.filtered; do echo "bwa mem transcriptome_iso.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`           
 
 Create launcher.        
-`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 12:00:00` 
+`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00` 
 
 Substitute wayness so that things run faster:          
 `cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
