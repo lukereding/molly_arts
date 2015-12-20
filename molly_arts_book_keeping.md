@@ -15,7 +15,7 @@ In the paper, they don't say if or how they did quality filtering. Totally arbit
 
 `pwd`<br>/scratch/02535/reding/molly_arts     
 
-### create a job file
+#### creating a job file
 `touch filter_job`<br>`for i in *.fastq; do echo "fastq_quality_filter -q 20 -p 80 -i $i -Q 33 -o $i.filtered" >> filter_job; done`<br>`cat filter_job`       
 
 >fastq_quality_filter -q 20 -p 80 -i SRR1161450_1.fastq -Q 33 -o SRR1161450_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1161451_1.fastq -Q 33 -o SRR1161451_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1165201_1.fastq -Q 33 -o SRR1165201_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1165203_1.fastq -Q 33 -o SRR1165203_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166366_1.fastq -Q 33 -o SRR1166366_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166367_1.fastq -Q 33 -o SRR1166367_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166368_1.fastq -Q 33 -o SRR1166368_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166369_1.fastq -Q 33 -o SRR1166369_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166370_1.fastq -Q 33 -o SRR1166370_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166371_1.fastq -Q 33 -o SRR1166371_1.fastq.filtered fastq_quality_filter -q 20 -p 80 -i SRR1166372_1.fastq -Q 33 -o SRR1166372_1.fastq.filtered
@@ -24,7 +24,7 @@ That should work fine as a job file.
 
 `module load fastx_toolkit` `module load launcher`       
 
-### submit the job
+#### submiting the job
 From here on out, I'm following instructions [here](https://wikis.utexas.edu/display/bioiteam/Submitting+Jobs+to+Lonestar) to submit jobs to Lonestar.      
 
 `cp $TACC_LAUNCHER_DIR/launcher.sge ./`      
@@ -71,7 +71,7 @@ Adaptors at at the end of the read and anchor the read to the flow cell. There i
 
 ---------------
 
-### getting a transcriptome
+## getting a transcriptome
 
 I first decided to use the guppy transcriptome:       
 `wget ftp://ftp.tuebingen.mpg.de/ebio/publication_data/esharma/guppy_trans/trin_cuff_v14_cdhit90.fa.gz`   # download the transcriptome     
@@ -79,8 +79,8 @@ I first decided to use the guppy transcriptome:
 `mv trin_cuff_v14_cdhit90.fa guppy_transcriptome` # rename it    
 
 
-### making transcriptome annotations
-#### doing the blasts
+## making transcriptome annotations
+### doing the blasts
  The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). Note that I'm transitioning here from using the walkthrough provided [here](https://wikis.utexas.edu/display/bioiteam/Introduction+to+RNA+Seq+Course+2015) to Misha's workflow, which can be found [here](https://github.com/z0on/annotatingTranscriptomes/blob/6751534ed87b0893242be97adfd00de1012a08a3/annotating%20trascriptome.txt)
 
 
@@ -125,14 +125,14 @@ I am going to try submitting this job for 24 hours to three nodes (note that eac
 This took roughly 8 hours to run.     
 ----------------
 
-#### an aside
+### an aside
 
 I find it's always good practice to check the number of things (e.g. genes) in the files you're working with for datasets this large. Note that `grep "^>" guppy_transcriptome | wc -l` gives `74567`, which seems like far too many genes. Of course, this number might be so high because we're using a transcriptome and therefore splice varients will be represented by different transcripts. This number still seems too high to me though; I'll need to go back to the original paper and make sure it's correct.      
 
 Below, we make some files we need to be able to use one of Misha's many scripts. Doing that involves naming all the genes in our transcriptome. Oddly, when I go through this process and call `wc -l transcriptome_seq2iso.tab` to give the number of genes in this file, the result is `18100`, which seems much more reasonable to me. I haven't been able to figure out why there is such a large discrepancy here.
 
 --------------------
-#### processing blast results
+### processing blast results
 According to Misha's, script: "if there are no components or isogroups in your transcriptome, create fake isogroup designations (=contigs)". The alternative to this is to use Trinity to assemble a transcriptome _de novo_, which we could do but don't want to do. I ran these lines according to his script:      
 
 >Don't run these lines!          
@@ -273,7 +273,7 @@ Submit the job:
 `qsub mapping_commands_jobscript`            
 
 ---------------
-## SAM conversion, sorting, and indexing
+### SAM conversion, sorting, and indexing
 
 We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy.
 
@@ -284,7 +284,7 @@ Launch it:
 `qsub bam_commands_job`
 
 
-### mapping quality
+### assessing mapping quality
 
 Now we can assess mapping quality for the reads from each individual like:
 
