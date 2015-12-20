@@ -292,6 +292,8 @@ Now we can assess mapping quality for the reads from each individual like:
 For each individual (i.e. each BAM file), we can use idxstats in `samtools` to extract a list of genes and their counts:
 `samtools idxstats SRR1166372_1.bam.sort.bam | cut -f 1,3`
 
+> **note: check this.** initial tests showed that this shows some duplicate genes. see the bsa hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative.
+
 
 ---------------
 
