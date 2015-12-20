@@ -40,10 +40,10 @@ Actually, fuck that, let's use the python script to create our script instead:
 To check on the status of your job, use `qstat`. When it's done running, you should have 11 fastq.filtered files: `ls *.fastq.filtered | wc -l`.      
 
 ### looking at the results of filtering
-To see how many reads we weeded out in each of the samples, first write one line for each of the 11 original files: 
-`for i in *.fastq; do echo "orginally: grep ^@ $i | wc -l , filtered: grep ^@ $i".filtered" | wc -l >> filtering_results" >> compare_filtered; done`. 
+To see how many reads we weeded out in each of the samples, first write one line for each of the 11 original files:
+`for i in *.fastq; do echo "orginally: grep ^@ $i | wc -l , filtered: grep ^@ $i".filtered" | wc -l >> filtering_results" >> compare_filtered; done`.
 Note that we want bash to evaluate the grep expression in each line; we can tell it to that using backticks like `evaluate this expression`. This series of sed substituitons puts that backticks in place: ``cat compare_filtered  | sed 's,grep,`grep,g' | sed 's,wc -l, wc -l`,g' > filt_vs_original``.
-Finally, we have to wrap each line in a call to `echo` otherwise bash will think 'originally' is a command: 
+Finally, we have to wrap each line in a call to `echo` otherwise bash will think 'originally' is a command:
 `cat filt_vs_original | sed 's,^orgin,echo "origin,g' | sed 's,filtering_results,filtering_results",g' > compare_filtered`    
 
 Then launch the job (counting the number of lines in each file takes a long time, otherwise we could just do that on the head node):
@@ -82,8 +82,8 @@ I first decided to use the guppy transcriptome:
 ### making transcriptome annotations
 #### doing the blasts
  The transcriptome is just a list of sequences that are likely genes; we don't know the identites of the genes. For this, we have to do a series of BLASTs, blasting each sequence against know gene sequences and names our genes based on the results. The Swiss-Prot database contains a bunch of sequences that we can blast against (I think). Note that I'm transitioning here from using the walkthrough provided [here](https://wikis.utexas.edu/display/bioiteam/Introduction+to+RNA+Seq+Course+2015) to Misha's workflow, which can be found [here](https://github.com/z0on/annotatingTranscriptomes/blob/6751534ed87b0893242be97adfd00de1012a08a3/annotating%20trascriptome.txt)
- 
- 
+
+
 `echo "wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" > get_prot`        
 `launcher_creator.py -j get_prot -l get_prot -a Sailfin_RNASeq -q normal -t 1:00:00 -e lukereding@utexas.edu`          
 `qsub get_prot`           
@@ -123,7 +123,13 @@ I am going to try submitting this job for 24 hours to three nodes (note that eac
 `qsub blast_job_36` # send it in           
 
 This took roughly 8 hours to run.     
+----------------
 
+#### an aside
+
+I find it's always good practice to check the number of things (e.g. genes) in the files you're working with for datasets this large. Note that `grep "^>" guppy_transcriptome | wc -l` gives `74567`, which seems like far too many genes. Of course, this number might be so high because we're using a transcriptome and therefore splice varients will be represented by different transcripts. This number still seems too high to me though; I'll need to go back to the original paper and make sure it's correct.      
+
+Below, we make some files we need to be able to use one of Misha's many scripts. Doing that involves naming all the genes in our transcriptome. Oddly, when I go through this process and call `wc -l transcriptome_seq2iso.tab` to give the number of genes in this file, the result is `18100`, which seems much more reasonable to me. I haven't been able to figure out why there is such a large discrepancy here.
 
 --------------------
 #### processing blast results
@@ -133,7 +139,7 @@ According to Misha's, script: "if there are no components or isogroups in your t
 `grep ">" guppy_transcriptome.fasta | perl -pe 's/>(\S+)\s.+/$1\tisogroup$1/' >transcriptome_seq2iso.tab`            
 `cat guppy_transcriptome.fasta | perl -pe 's/>(\S+).+/>$1 gene=isogroup$1/' >transcriptome_iso.fasta`             
 
-      
+
 These lines don't work. The goal: create a `transcriptome_seq2iso.tab` file that has one column representing trasncript ID and a second column with gene ID. I'm going to assume that 1 transcript = 1 gene. Then we want to create a `transcriptome_iso.fasta` file in which the headers are the same transcript ID, tab, then 'gene=geneID'. These must be the same as the names in the `transcriptome_seq2iso.tab` file. Finally, these names must match the 'Query = ' lines in the blast search results (the `.br` file that was generated from blast).
 
 `grep ">" guppy_transcriptome | cut -d"_" -f2,3 | sed 's,_m,,g' | sed 's,\([0-9]*\)\.\([0-9]*\),comp\1\2\tisogroup\1\2,' > transcriptome_seq2iso.tab`          
@@ -153,8 +159,8 @@ cat *.br | sed 's,^Query= CUFF_\([0-9]*\),Query= \1,g' | sed 's,_m.,,g' | sed 's
 
 
 What do these files looks like now?           
-              
-              
+
+
 `head transcriptome_seq2iso.tab`                 
 >comp10004275477	isogroup10004275477       
 comp10006275362	isogroup10006275362
@@ -197,7 +203,7 @@ Because we are using a previously assembled transcriptome, we don't need to use 
 
 Next, we want to use the results from our blast to extract the gene names for each of our transcripts. `getGeneNameFromUniProtKB.pl` is a Perl script that Misha wrote and is available [here](https://github.com/z0on/annotatingTranscriptomes/blob/master/getGeneNameFromUniProtKB.pl). The easiest way is to download the repository from github and use `scp` to transfer it to TACC. Note that you may need to do `chmod +x getGeneNameFromUniProtKB.pl` to change permissions to ensure you can execute the script. Note also that you need to include the word `perl` before the name of the script; `which perl` yeilds `/opt/apps/perl/5.14/bin/perl`, not `/usr/bin/perl/` which in the shebang of Misha's script.
 
-`perl getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta` 
+`perl getGeneNameFromUniProtKB.pl blast=guppy_blast_results_corrected.br prefix=guppy fastaQuery=transcriptome_iso.fasta`
 
 `head guppy_iso2hit.tab`
 >sp|Q92817|EVPL_HUMAN	1e-180
@@ -252,14 +258,14 @@ Meanwhile, I should have been trying to map the reads to the guppy genome. I'll 
 `module load bwa/0.7.7`        
 `echo "bwa index -a bwtsw transcriptome_iso.fasta" > index_guppy`
 `launcher_creator.py -j index_guppy -n index_guppy_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`           
-       
+
 Now let's make the mapping commands using BWA-MEM:    
 
 Create job file.       
 `for file in *.filtered; do echo "bwa mem transcriptome_iso.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`           
 
 Create launcher.        
-`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00` 
+`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00`
 
 Substitute wayness so that things run faster:          
 `cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
@@ -269,28 +275,33 @@ Submit the job:
 ---------------
 ## SAM conversion, sorting, and indexing
 
-We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy. 
+We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy.
 
 `for file in SRR*.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done`
 
 Launch it:     
-`launcher_creator.py -j bam_commands -n bam_commands_job -l bam_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00` 
+`launcher_creator.py -j bam_commands -n bam_commands_job -l bam_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00`
 `qsub bam_commands_job`
 
+
+### mapping quality
 
 Now we can assess mapping quality for the reads from each individual like:
 
 `samtools flagstat SRR1165201_1.bam`
+
+To get an overall sense of the percentage of reads that mapped, I ran a job with the command `samtools flagstat SRR*.bam`. The result (at the bottom of `BAM_job.o2959735`), shows `24006209 + 0 mapped (50.04%:nan%)`, suggesting that only half the reads mapped. Not great.
 
 -----------------
 
 ## gene counting
 
 
-`module load samtools`        
+`module load samtools`          
 
 For each individual (i.e. each BAM file), we can use idxstats in `samtools` to extract a list of genes and their counts:
-`samtools idxstats SRR1166372_1.bam.sort.bam | cut -f 1,3`
+`samtools view SRR1166372_1.bam | cut -f3 | sort| uniq -c | sort -
+k1nr | cut -f1-2`
 
 > **note: check this.** initial tests showed that this shows some duplicate genes. see the bsa hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)
 
