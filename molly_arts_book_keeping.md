@@ -287,10 +287,10 @@ Now we can assess mapping quality for the reads from each individual like:
 ## gene counting
 
 
-`module load bedtools`        
-`bedtools`          
-`bedtools multicov`     
+`module load samtools`        
 
+For each individual (i.e. each BAM file), we can use idxstats in `samtools` to extract a list of genes and their counts:
+`samtools idxstats SRR1166372_1.bam.sort.bam | cut -f 1,3`
 
 
 ---------------
