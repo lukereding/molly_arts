@@ -299,11 +299,35 @@ To get an overall sense of the percentage of reads that mapped, I ran a job with
 
 `module load samtools`          
 
-For each individual (i.e. each BAM file), we can use idxstats in `samtools` to extract a list of genes and their counts:
-`samtools view SRR1166372_1.bam | cut -f3 | sort| uniq -c | sort -
-k1nr | cut -f1-2`
+For each individual (i.e. each BAM file), we can use `idxstats` in `samtools` to extract a list of genes and their counts:
+`samtools view SRR1166372_1.bam | cut -f3 | sort| uniq -c | sort -k1nr | cut -f1-2`
 
 > **note: check this.** initial tests showed that this shows some duplicate genes. see the bsa hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)
+
+
+----------------
+
+### another aside: useful samtools commands
+
+*Taken from [this](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage) website.*
+
+Covert a SAM file to a sorted BAM file in one step:
+
+`samtools view -bS file.sam | samtools sort - file_sorted`
+
+Filter out unmapped reads from a BAM file, save to a new BAM file:
+
+`samtools view -h -F 4 -b blah.bam > blah_only_mapped.bam`
+
+Create a FASTQ file from a BAM file (only aligned reads):
+
+`bam2fastq -o blah_unaligned.fastq --no-unaligned blah.bam`
+
+Fastest way to count number of reads in a BAM file:
+
+`samtools idxstats in.bam | awk '{s+=$3+$4} END {print s}`   # number of reads            
+`samtools idxstats in.bam | awk '{s+=$3} END {print s}'    `#number of mapped reads
+
 
 
 ---------------
