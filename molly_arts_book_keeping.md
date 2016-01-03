@@ -251,7 +251,7 @@ isogroup2834526737	GO:0005789;GO:0016021;GO:0050660;GO:0004499;GO:0050661
 
 
 ------------------
-## mapping
+## mapping pt. 1: BWA
 
 Meanwhile, I should have been trying to map the reads to the guppy genome. I'll follow the example on the RNA seq walkthrough and use BWA to map. Let's first index the guppy transcriptome:
 
@@ -302,10 +302,66 @@ To get an overall sense of the percentage of reads that mapped, I ran a job with
 For each individual (i.e. each BAM file), we can use `idxstats` in `samtools` to extract a list of genes and their counts:
 `samtools view SRR1166372_1.bam | cut -f3 | sort| uniq -c | sort -k1nr | cut -f1-2`
 
-> **note: check this.** initial tests showed that this shows some duplicate genes. see the bsa hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)
+> **note: ** also see the basb hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)
+
+-----------------
+
+Because of the terrible mapping success we had, I'm going to try a different approach and use Bowtie2 instead of BWA to map the reads. This sort of compromises the nice linear structure I've kept up until this point, but I think it's necessary to document the steps I've taken.
+
+-----------------
+
+## mapping pt. 2: Bowtie2
+
+Now I retry mapping, this time with Bowtie2 to see if more of our reads will map to the guppy transcriptome.
+
+To keep this attempt separate from the BWA attempt, I'll contain all the Bowtie mapping files to a folder within `molly_arts` on TACC.
+
+`mkdir bowtie2_mapping && cd bowtie2_mapping`
+Copy all filtered fastq files:
+`echo "find .. -name '*.filtered' -exec cp {} . \;" > copy`
+`launcher_creator.py -j copy -n copy_job -l copy_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`
+
+Before mapping, create an index of the `guppy_transcriptome` FASTA file:
+
+`module load samtools`
+`samtools faidx ../guppy_transcriptome`
 
 
-----------------
+Before submitting the job, let's look at the main function call and try to understand the arguments:
+
+`bowtie2 --local --very-fast-local -f -k 5 -x ../guppy_transcriptome.fai -U ../XX.filtered -S XX.sam`
+
+* --local : From the [manual](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml):
+>When the --local option is specified, Bowtie 2 performs local read alignment. In this mode, Bowtie 2 might "trim" or "clip" some read characters from one or both ends of the alignment if doing so maximizes the alignment score.
+* --very-fast-local : not sure
+* -f : tells bowtie2 that these are FASTA files
+* -k 1 : again, from the manual:
+>In -k mode, Bowtie 2 searches for up to N distinct, valid alignments for each read, where N equals the integer specified with the -k parameter. That is, if -k 2 is specified, Bowtie 2 will search for at most 2 distinct alignments. It reports all alignments found, in descending order by alignment score.
+Note that Misha uses `-k 5`
+* -x : the index of the reference file
+* -U : reads to be aligned
+* -S : file to write SAM alignments to
+
+
+Let's write the job file:
+`module load bowtie/2.1.0`
+`for file in *.filtered; do echo "bowtie2 --local --very-fast-local -f -k 5 -x ../guppy_transcriptome.fai -U $file -S ./${file%.fastq.filtered}.sam" >> bowtie2_mapping_commands; done`
+
+Create launcher.        
+`launcher_creator.py -j bowtie2_mapping_commands -n bowtie2_mapping_commands_job -l bowtie2_mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00`
+
+Substitute wayness so that things run faster:          
+`cat bowtie2_mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
+Submit the job:         
+`qsub mapping_commands_jobscript`            
+
+
+
+
+---------------------
+
+
+
 
 ### another aside: useful samtools commands
 
