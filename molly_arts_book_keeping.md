@@ -320,11 +320,14 @@ To keep this attempt separate from the BWA attempt, I'll contain all the Bowtie 
 Copy all filtered fastq files:
 `echo "find .. -name '*.filtered' -exec cp {} . \;" > copy`
 `launcher_creator.py -j copy -n copy_job -l copy_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`
+Rename so that the filtered files end in `.fasta` otherwise bowtie will throw an error:
+`for file in *.filtered; do mv $file $file.fasta; done`
 
 Before mapping, create an index of the `guppy_transcriptome` FASTA file:
 
 `module load samtools`
-`samtools faidx ../guppy_transcriptome`
+`module load bowtie/2.1.0`
+`bowtie2-build ../guppy_transcriptome guppy_transcriptome`
 
 
 Before submitting the job, let's look at the main function call and try to understand the arguments:
@@ -332,10 +335,12 @@ Before submitting the job, let's look at the main function call and try to under
 `bowtie2 --local --very-fast-local -f -k 5 -x ../guppy_transcriptome.fai -U ../XX.filtered -S XX.sam`
 
 * --local : From the [manual](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml):
+
 >When the --local option is specified, Bowtie 2 performs local read alignment. In this mode, Bowtie 2 might "trim" or "clip" some read characters from one or both ends of the alignment if doing so maximizes the alignment score.
 * --very-fast-local : not sure
 * -f : tells bowtie2 that these are FASTA files
 * -k 1 : again, from the manual:
+
 >In -k mode, Bowtie 2 searches for up to N distinct, valid alignments for each read, where N equals the integer specified with the -k parameter. That is, if -k 2 is specified, Bowtie 2 will search for at most 2 distinct alignments. It reports all alignments found, in descending order by alignment score.
 Note that Misha uses `-k 5`
 * -x : the index of the reference file
@@ -345,7 +350,7 @@ Note that Misha uses `-k 5`
 
 Let's write the job file:
 `module load bowtie/2.1.0`
-`for file in *.filtered; do echo "bowtie2 --local --very-fast-local -f -k 5 -x ../guppy_transcriptome.fai -U $file -S ./${file%.fastq.filtered}.sam" >> bowtie2_mapping_commands; done`
+`for file in *.filtered.fasta; do echo "bowtie2 --local --very-fast-local -k 5 -x guppy_transcriptome -U $file -S ./${file%.fastq.filtered.fasta}.sam" >> bowtie2_mapping_commands; done`
 
 Create launcher.        
 `launcher_creator.py -j bowtie2_mapping_commands -n bowtie2_mapping_commands_job -l bowtie2_mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00`
@@ -355,7 +360,36 @@ Substitute wayness so that things run faster:
 Submit the job:         
 `qsub mapping_commands_jobscript`            
 
+This took one hour and fifteeen minutes to run.
 
+I now follow the same steps as above, repeated here for completeness.
+
+#### SAM conversion, sorting, and indexing
+
+We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy.
+
+`for file in *.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done`
+
+Launch it:     
+`launcher_creator.py -j bam_commands -n bam_commands_job -l bam_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00`
+`qsub bam_commands_job`
+
+For whatever reason, the indexing of the SAM files didn't work. I'll do a separate job to try that:
+`cat bam_commands | sed 's,^\(.*\) && \(samtools index .*\),\2,g' > bam_index`
+This puts all the indexing commands in one file. Then we have have index the sorted BAM files, not the unsorted ones (I wrote the initial line wrong):
+`cat bam_index | sed 's,\(S.*\).bam,\1.bam.sort.bam,g' > bam_index_sort`
+`launcher_creator.py -j bam_index_sort -n bam_index_sort_job -l bam_index_sort_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00`
+`qsub bam_index_sort_job`
+
+
+
+#### assessing mapping quality
+
+Now we can assess mapping quality for the reads from each individual like:
+
+`samtools flagstat SRR1165201_1.bam`
+
+To get an overall sense of the percentage of reads that mapped, I ran a job with the command `samtools flagstat SRR*.bam`. The result (at the bottom of `BAM_job.o2959735`), shows `25424751 + 0 mapped (49.15%:nan%)`, suggesting that, again, only half the reads mapped. Not great, but at least we're getting some sort of consistent result between the two mapping algorithms.
 
 
 ---------------------
