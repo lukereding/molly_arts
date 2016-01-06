@@ -302,7 +302,13 @@ To get an overall sense of the percentage of reads that mapped, I ran a job with
 For each individual (i.e. each BAM file), we can use `idxstats` in `samtools` to extract a list of genes and their counts:
 `samtools view SRR1166372_1.bam | cut -f3 | sort| uniq -c | sort -k1nr | cut -f1-2`
 
-> **note: ** also see the basb hscript [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)
+Let's do this for each individual:
+
+`for file in *.bam.sort.bam; do echo "samtools view $file | cut -f3 | sort| uniq -c | sort -k1nr | cut -f1-2 > ${file%.bam.sort.bam}.counts" >> counts_job; done`            
+`launcher_creator.py -j counts_job -n counts_job_job -l counts_job_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 5:00:00`              
+`qsub counts_job_job`
+
+> **note: ** also see the bash script [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)       
 
 -----------------
 
@@ -393,6 +399,10 @@ To get an overall sense of the percentage of reads that mapped, I ran a job with
 
 
 ---------------------
+
+## analysis of gene counts from BWA
+
+At this point, I have series of files, one per individual, containing the number of mRNA reads mapped to get gene. The goal is to generate some sort of spreadsheet where the rows represent all possible genes and the column represent individuals. The cells are filled with the number of transcripts mapped to a given gene for a given individual.
 
 
 
