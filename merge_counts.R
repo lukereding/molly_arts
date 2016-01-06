@@ -2,6 +2,10 @@
 # saves the resulting dataframe as `counts.csv`
 # run like `Rscript merge_counts.R /path/to/counts`
 
+if(!"magrittr" %in% installed.packages())install.packages("magrittr",repos="http://cran.us.r-project.org")
+
+require(magrittr)
+
 # print session info for reference / debugging purposes
 sessionInfo()
 
@@ -11,8 +15,18 @@ print(args)
 # change the working directory to whatever the directory passed as the arugment is
 setwd(args[1])
 
-# find all files that end in *counts:
-files <- list.files(path = ".", pattern = "*.counts")
+# print working directory
+getwd()
+
+# check to make sure `counts.csv` isn't in the directory already:
+if(file.exists("counts.csv")){
+  stop("there's already a counts.csv in the directory. Either rename it or delete it then try again.")
+}
+
+# find all files that end in `.counts`:
+files <- list.files(pattern = "*\\.counts$")
+
+print(files)
 
 # check to make sure you have more than 1 file:
 if(length(files) < 2){
@@ -20,25 +34,38 @@ if(length(files) < 2){
 }
 
 # start by iniating with the first dataframe
-x <- read.table(files[1], col.names=c("counts","gene"))
+print(files[1])
+a <- files[1] %>% strsplit(.,".",fixed=T) %>% lapply(., `[[`, 1) %>% unlist
+x <- read.table(files[1], col.names=c(a,"gene"))
+
+print(head(x))
 
 # in each iteration of the loop, add one additional column to the dataframe
 for(i in 2:length(files)){
   
+  print(files[i])
+  print(i)
+  
   # read in the next data frame
   y <- read.table(files[i], col.names=c("counts","gene"))
   # merge
-  x <- merge(x,y,all=T, by="gene")
+  n <- files[(i-1):i] %>% strsplit(.,".",fixed=T) %>% lapply(., `[[`, 1) %>% unlist
+  x <- merge(x,y,all=T, by="gene", suffixes=n)
   
 }
 
-# change the column names to reflect what individual the reads came from:
-names(x)[2:ncol(x)] <- files %>% strsplit(.,".",fixed=T) %>% lapply(., `[[`, 1) %>% unlist
+# get rid of `counts`  prefix on column names
+names(x) %<>% gsub("counts","",.)
+
+# check to make sure all colum names are unique
+if(names(x) %>% unique %>% length != ncol(x)){
+  stop("problem assigned column unique names")
+}
 
 # when merging with `all = T`, R substitutes NAs instead of 0.
 # replace NAs with zeros
 x[is.na(x)] <- 0
 
-write.csv(x, file = "counts.csv")
+write.csv(x, file = "counts.csv", row.names=F)
 
 cat("merged dataframe saved as counts.csv.")
