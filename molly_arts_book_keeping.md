@@ -342,13 +342,16 @@ Before submitting the job, let's look at the main function call and try to under
 
 * --local : From the [manual](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml):
 
->When the --local option is specified, Bowtie 2 performs local read alignment. In this mode, Bowtie 2 might "trim" or "clip" some read characters from one or both ends of the alignment if doing so maximizes the alignment score.
+>When the --local option is specified, Bowtie 2 performs local read alignment. In this mode, Bowtie 2 might "trim" or "clip" some read characters from one or both ends of the alignment if doing so maximizes the alignment score.       
+
 * --very-fast-local : not sure
 * -f : tells bowtie2 that these are FASTA files
 * -k 1 : again, from the manual:
 
 >In -k mode, Bowtie 2 searches for up to N distinct, valid alignments for each read, where N equals the integer specified with the -k parameter. That is, if -k 2 is specified, Bowtie 2 will search for at most 2 distinct alignments. It reports all alignments found, in descending order by alignment score.
-Note that Misha uses `-k 5`
+
+>Note that Misha uses `-k 5`
+
 * -x : the index of the reference file
 * -U : reads to be aligned
 * -S : file to write SAM alignments to
@@ -433,11 +436,63 @@ Fastest way to count number of reads in a BAM file:
 
 --------------
 
+# Redoing everything with the Amazon molly genome.
 
-To redo everything using the Amazon molly genome as a reference:
+I am convinced that the guppy transcriptome is a poor reference to map to. Not only am I getting only ~50% of my reads mapped, regardless of whether I use Bowtie or BWA, but a previous paper by the same group that initially characterized the guppy transcriptome found that 40% of their reads from sailfins mapped to the guppy transcriptome, which is largely consistent with my findings, suggesting I'm not doing something terribly wrong.
 
-use the link:
-ftp://ftp.ensembl.org/pub/release-83/fasta/poecilia_formosa/dna/Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa.gz
+I am going to re-do everything use the Amazon molly genome as a reference.
+
+Make a new folder called `amazon` to keep things tidy:
+
+`mkdir amazon`        
+`cd amazon`      
+
+Copy the original fastq files int the new folder so that everything is self-contained:
+
+`cp ../*.fastq.filtered .`
+
+Download the amazon molly reference genome from emsembl:
+
+`curl -O ftp://ftp.ensembl.org/pub/release-83/fasta/poecilia_formosa/dna/Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa.gz`        
+`gunzip Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa.gz`    
+
+This results in `Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa`. I'm going to rename it to make it easier to work with:
+
+`mv Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa amazon_genome.fasta`
+
+Let's also pull the GTF file from ensembl while we're at it:
+
+`curl -O ftp://ftp.ensembl.org/pub/release-83/gtf/poecilia_formosa/Poecilia_formosa.PoeFor_5.1.2.83.gtf.gz`     
+`gunzip *.gz`    
+
+
+---------------
+
+### mapping with BWA and the amazon molly genome
+
+We first need to index the amazon molly genome prior to mapping:
+
+`module load bwa/0.7.7`        
+`echo "bwa index -a bwtsw amazon_genome.fasta" > index_amazon`
+`launcher_creator.py -j index_amazon -n index_amazon_job -l index_amazon_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 1:00:00`           
+
+
+
+
+
+Now let's make the mapping commands using BWA-MEM:    
+
+Create job file.       
+`for file in *.filtered; do echo "bwa mem amazon_genome.fasta $file > ${file%.fastq.filtered}.sam" >> mapping_commands; done`           
+
+Create launcher.        
+`launcher_creator.py -j mapping_commands -n mapping_commands_job -l mapping_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 23:50:00`
+
+Substitute wayness so that things run faster:          
+`cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
+Submit the job:         
+`qsub mapping_commands_jobscript`            
+
 
 ---------------
 
