@@ -308,7 +308,7 @@ Let's do this for each individual:
 `launcher_creator.py -j counts_job -n counts_job_job -l counts_job_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 5:00:00`              
 `qsub counts_job_job`
 
-> **note: ** also see the bash script [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)       
+**note:** also see the bash script [here](https://www.biostars.org/p/14531/) for a possible, better alternative. also see notes [here](http://davetang.org/wiki/tiki-index.php?page=SAMTools#Basic_usage)   
 
 -----------------
 
@@ -404,6 +404,9 @@ To get an overall sense of the percentage of reads that mapped, I ran a job with
 
 At this point, I have series of files, one per individual, containing the number of mRNA reads mapped to get gene. The goal is to generate some sort of spreadsheet where the rows represent all possible genes and the column represent individuals. The cells are filled with the number of transcripts mapped to a given gene for a given individual.
 
+I wrote a script, `merge_counts.R`, to automate this. The script should be in this directory / repository. The script is run from the command line like `Rscript merge_counts.R /path/to/directory`. The script will look in `path/to/directory` for all files that end in `.counts`. These files come from the above *gene counting* step. These are files with two columns separated with whitespace (so that `read.table` in R can read them). The first column are counts, the second column is gene names. The script merges all these `counts` together, naming the columns of the resulting dataframe based on the names of the `.counts` files. The resulting dataframe is saved as `counts.csv` in `/path/to/directory`. It has n+1 columns, where n = number of `.counts` file (or individuals). If no gene is expressed in one inidividual but is expressed in other individuals, I change the NA supplied by the `merge` function in R to a zero, meaning that no expression of that gene was detected. You can run this R script on TACC and then move the resulting csv file to your local machine.
+
+
 
 
 
@@ -428,7 +431,13 @@ Fastest way to count number of reads in a BAM file:
 `samtools idxstats in.bam | awk '{s+=$3+$4} END {print s}`   # number of reads            
 `samtools idxstats in.bam | awk '{s+=$3} END {print s}'    `#number of mapped reads
 
+--------------
 
+
+To redo everything using the Amazon molly genome as a reference:
+
+use the link:
+ftp://ftp.ensembl.org/pub/release-83/fasta/poecilia_formosa/dna/Poecilia_formosa.PoeFor_5.1.2.dna.toplevel.fa.gz
 
 ---------------
 

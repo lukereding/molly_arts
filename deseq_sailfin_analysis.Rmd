@@ -1,0 +1,118 @@
+---
+title: "deseq_sailfins"
+author: "Luke Reding"
+date: "January 6, 2016"
+output: 
+  html_document: 
+    highlight: tango
+    number_sections: yes
+    theme: cerulean
+---
+
+## DESeq2 with sailfin dataset
+
+Read in count data. I also get rid of the first column (the genes) and make them the row names, otherwise `DESeq` gets upset:
+
+```{r}
+library(DESeq2)
+library(magrittr)
+
+counts <- read.csv("/Users/lukereding/Documents/molly_arts/counts.csv")
+
+rownames(counts) <- counts[,1]
+counts <- counts[,-1]
+
+head(counts)
+```
+
+We have `r ncol(counts)` columns in our count dataset, or `r ncol(counts)` individuals. 
+
+Now I make a dataframe relating sample names to conditions:
+
+```{r}
+
+sample_names <- c("SRR1166372_1", "SRR1166371_1","SRR1166370_1", "SRR1166369_1","SRR1166368_1", "SRR1166367_1", "SRR1166366_1", "SRR1165203_1", "SRR1165201_1", "SRR1161451_1", "SRR1161450_1")
+male_sizes <- c("small", "small", "small", "small", "small", "small", "intermediate", "intermediate", "intermediate", "intermediate", "intermediate")
+code <- c("BSM3", "BSM2", "BSM1", "BSA3", "BSA2", "BSA1", "BIM2", "BIM1", "BIA3", "BIA2", "BIA1")
+social <- c("multimale","multimale","multimale", "alone", "alone", "alone", "multimale", "multimale", "alone", "alone", "alone")
+
+## some error checking:
+if(sum(sample_names %in% names(counts)) != (ncol(counts))) stop("recheck sample names")
+if(length(male_sizes) != (ncol(counts))) stop("recheck male_sizes")
+if(length(male_sizes %>% factor %>% levels) != 2) stop("recheck male_sizes")
+if(length(code) != (ncol(counts))) stop("recheck code")
+if(length(social %>% factor %>% levels) != 2) stop("recheck social")
+if(length(social) != (ncol(counts))) stop("recheck social")
+
+conditions <- data.frame(sample_names, male_sizes, code, social)
+
+conditions %>% print
+
+```
+
+
+Now we construct the main `DESeq` object. I start out simple and model counts just based on whether the male was small or intermediate:
+
+```{r}
+
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = conditions, design = ~ social)
+
+colData(dds)$social %<>% factor
+
+# relevel to make the small male the baseline
+
+colData(dds)$social <- relevel(colData(dds)$social, "alone")
+
+```
+
+The main functions:
+
+```{r}
+
+dds <- DESeq(dds)
+res <- results(dds)
+res <- res[order(res$padj),]
+head(res)
+
+```
+
+Differentially expressed genes (based on adjusted p-value):
+
+```{r}
+
+subset(res, res$padj < 0.05) %>% data.frame
+
+```
+
+There are `r subset(res, res$padj < 0.05) %>% nrow` differentially expressed genes.
+
+Plot some results:
+
+```{r}
+
+plotMA(dds,ylim=c(-2,2),main="DESeq2")
+
+```
+
+
+```{}
+require(viridis)
+library("gplots")
+
+op <- par(no.readonly = TRUE)
+
+rld <- rlogTransformation(dds, blind=TRUE)
+vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
+
+select <- order(rowMeans(counts(dds,normalized=TRUE)),decreasing=TRUE)[1:30]
+heatmap.2(counts(dds,normalized=TRUE)[select,], col = viridis(100), Rowv = FALSE, Colv = FALSE, scale="none", dendrogram="none", trace="none", margin=c(10,6))
+heatmap.2(assay(rld)[select,], col = viridis(100),
+Rowv = FALSE, Colv = FALSE, scale="none",
+dendrogram="none", trace="none", margin=c(10, 6))
+heatmap.2(assay(vsd)[select,], col = viridis(100),
+Rowv = FALSE, Colv = FALSE, scale="none",
+dendrogram="none", trace="none", margin=c(10, 6))
+
+par(op)
+```
+
