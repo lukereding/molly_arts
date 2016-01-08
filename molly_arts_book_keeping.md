@@ -540,7 +540,7 @@ Instead of doing what I did above, a (likely) better way of doing things is to u
 
 `qsub count_genes_job`
 
-### trying some shit
+#### trying some shit with `bedtools`
 
 Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:
 
@@ -548,8 +548,25 @@ Before I downloaded the .gtf file; instead, to follow along with the intructions
 
 `gunzip Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
 
+Rename:
+
+`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`
+
+
+I'll use bedtools to count genes:
+
 `module load bedtools`
-`bedtools multicov -bams SRR1166371_1.bam.sort.bam -bed NC_017544.1.genes.gff > gene_counts.gff`
+
+`for file in *.bam.sort.bam; do echo "bedtools multicov -bams $file -bed *.gtf > ${file%.bam.sort.bam}.gff" >> counting; done`
+
+`launcher_creator.py -j counting -n counting_job -l counting_job -t 0:00:50 -a Sailfin_RNASeq -e lukereding@utexas.edu`
+
+ `qsub counting_job`
+
+**keeps aborting (??)**
+
+<!-- For the resulting `.gff` files, use `*.gff | cut -f9,10 | sed 's,.* gene name "\(.*\)",\1,g'` to get the a
+  -->
 ---------------
 
 ### from the supplemental materials:
