@@ -532,6 +532,8 @@ Oops again:
 
 ### counting genes
 
+#### using samtools to count genes
+
 Instead of doing what I did above, a (likely) better way of doing things is to use `samtools idxstats bam_file`. This returns a list with four tab-delimited columns. The first is the gene/transcript, the sequence length, the number of reads mapped, and the number of reads unmapped.
 
 `for file in *.bam.sort.bam; do echo "samtools idxstats $file > ${file%.bam.sort.bam}.counts" >> count_genes; done`
@@ -539,6 +541,18 @@ Instead of doing what I did above, a (likely) better way of doing things is to u
 `launcher_creator.py -j count_genes -n count_genes_job -l count_genes_job -t 0:15:00 -a Sailfin_RNASeq -e lukereding@utexas.edu`
 
 `qsub count_genes_job`
+
+In reality, this isn't super useful. The `.counts` files look like this:
+
+>KI519610.1	7371162	574071	0         
+KI519611.1	6947489	609704	0            
+KI519612.1	6918293	628381	0          
+KI519613.1	6837434	721852	0       
+KI519614.1	6763396	389486	0       
+KI519615.1	6332452	361961	0         
+KI519616.1	6276451	577374	0          
+
+The first column is the chromosome and the next two of the regions between which a given feature occurs. The last column is the number of reads mapping to that feature. We want gene names, not locations on chromosomes, so counting things this way isn't super useful.
 
 ~~Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:~~
 
@@ -550,6 +564,7 @@ Instead of doing what I did above, a (likely) better way of doing things is to u
 
 ~~`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`~~
 
+#### using bedtools to count genes
 
 I'll use bedtools to count genes:
 
@@ -586,6 +601,27 @@ Before we do that though, I'm going to re-do the call to `bedtools multicov` abo
 `launcher_creator.py -j bedtools_commands -n bedtools_commands_job -l bedtools_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu`
 
 `qsub bedtools_commands_job`
+
+From this we have `results.gff`. To make our lives simple, we wish to only extract features that represent genes. We also want to extract the ensembl gene IDs, gene names, and counts using this crazy one-liner:
+
+
+`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,6- | cut -d' ' -f2,4- | sed 's,;,,g'`
+
+> __Explanation:__
+`awk` is selecting lines in which the third column (tab-delimited) says 'gene'
+`cut -f9-` is getting rid of the first 8 columns, which contain the chromosome and other stuff we don't really care about
+`cut -d';' -f1,3,6-` is changing the delimiter for `cut` from tabs (the default) to semi-colons. It then selects the 1st, 3rd, and 6th - end columns, which contain the gene ID, gene name, and counts for each individual
+`cut -d' ' -f2,4-` changes the delimiter to a space and selects only the gene id itself (getting rid of the 'gene_id' label), the gene name itself, and the counts
+`sed 's,;,,g'` gets rid of all semi-colons
+
+The resulting output looks like this:
+
+>"ENSPFOG00000019075" "ZADH2"	576	552	771	619	416	562	420	346	483	550	450         
+"ENSPFOG00000019081" "TSHZ1 (2 of 3)"	4834	5302	5920	6451	3722	5348	3826	3295	3999	5397	3970             
+"ENSPFOG00000019083" "ZNF516 (2 of 2)"	926	689	960	804	471	967	610	483	616	846	854         
+"ENSPFOG00000019091" "znf236"	1988	1994	2462	2359	1363	1808	1696	1195	1498	1979	1807          
+
+
 
 
 ---------------
