@@ -491,9 +491,65 @@ Create launcher.
 Substitute wayness so that things run faster:          
 `cat mapping_commands_job | perl -pe 's/12way .+$/4way 48/' >mapping_commands_jobscript`              
 Submit the job:         
-`qsub mapping_commands_jobscript`            
+`qsub mapping_commands_jobscript`           
 
 
+#### SAM conversion, sorting, and indexing
+
+We now convert the SAM files that resulted from the previous step to BAM files, which are less unwieldy.
+
+`for file in SRR*.sam; do echo "samtools view -b -S $file > ${file%.sam}.bam && samtools sort ${file%.sam}.bam ${file%.sam}.bam.sort && samtools index ${file%.sam}.bam" >> bam_commands; done`      
+
+`launcher_creator.py -j bam_commands -n bam_commands_job -l bam_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 2:00:00`   
+
+`qsub bam_commands_job`    
+
+Oops:
+
+`cat bam_commands | sed 's,\(.*\)\(samtools index .*\),\2,g' > bam_indexing`    
+
+`launcher_creator.py -j bam_indexing -n bam_indexing_job -l bam_indexing_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 1:00:00`  
+
+`qsub bam_indexing_job`
+
+Oops again:
+
+`cat bam_indexing | sed 's,.bam,.bam.sort.bam,g' > bam_index`
+
+`launcher_creator.py -j bam_index -n bam_index_job -l bam_index_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 0:15:00`
+
+`qsub bam_index_job`
+
+#### assessing mapping quality
+
+`echo "samtools flagstat SRR*.bam > mapping_results" > mapping_quality`     
+
+`launcher_creator.py -j mapping_quality -n mapping_quality_job -l mapping_quality_job -a Sailfin_RNASeq -e lukereding@utexas.edu`   
+
+`qsub mapping_quality_job`
+
+`cat`ing `mapping_results` yeilds `50878768 + 0 mapped (95.40%:nan%)`: 95% of the reads mapped!
+
+### counting genes
+
+Instead of doing what I did above, a (likely) better way of doing things is to use `samtools idxstats bam_file`. This returns a list with four tab-delimited columns. The first is the gene/transcript, the sequence length, the number of reads mapped, and the number of reads unmapped.
+
+`for file in *.bam.sort.bam; do echo "samtools idxstats $file > ${file%.bam.sort.bam}.counts" >> count_genes; done`
+
+`launcher_creator.py -j count_genes -n count_genes_job -l count_genes_job -t 0:15:00 -a Sailfin_RNASeq -e lukereding@utexas.edu`
+
+`qsub count_genes_job`
+
+### trying some shit
+
+Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:
+
+`curl -O ftp://ftp.ensembl.org/pub/release-83/gff3/poecilia_formosa/Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
+
+`gunzip Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
+
+`module load bedtools`
+`bedtools multicov -bams SRR1166371_1.bam.sort.bam -bed NC_017544.1.genes.gff > gene_counts.gff`
 ---------------
 
 ### from the supplemental materials:
