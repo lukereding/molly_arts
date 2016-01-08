@@ -540,9 +540,7 @@ Instead of doing what I did above, a (likely) better way of doing things is to u
 
 `qsub count_genes_job`
 
-#### trying some shit with `bedtools`
-
-Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:
+~~Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:
 
 `curl -O ftp://ftp.ensembl.org/pub/release-83/gff3/poecilia_formosa/Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
 
@@ -550,7 +548,7 @@ Before I downloaded the .gtf file; instead, to follow along with the intructions
 
 Rename:
 
-`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`
+`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`~~
 
 
 I'll use bedtools to count genes:
@@ -559,14 +557,37 @@ I'll use bedtools to count genes:
 
 `for file in *.bam.sort.bam; do echo "bedtools multicov -bams $file -bed *.gtf > ${file%.bam.sort.bam}.gff" >> counting; done`
 
-`launcher_creator.py -j counting -n counting_job -l counting_job -t 0:00:50 -a Sailfin_RNASeq -e lukereding@utexas.edu`
+`launcher_creator.py -j counting -n counting_job -l counting_job -a Sailfin_RNASeq -e lukereding@utexas.edu`
 
  `qsub counting_job`
 
-**keeps aborting (??)**
 
-<!-- For the resulting `.gff` files, use `*.gff | cut -f9,10 | sed 's,.* gene name "\(.*\)",\1,g'` to get the a
-  -->
+This results in a bunch of `.gff` files that look like this:
+
+> KI519610.1	ensembl	gene	772	45558	.	+	.	gene_id "ENSPFOG00000016007"; gene_version "1"; gene_source "ensembl"; gene_biotype "protein_coding";	3098
+KI519610.1	ensembl	transcript	772	45558	.	+	.	gene_id "ENSPFOG00000016007"; gene_version "1"; transcript_id "ENSPFOT00000016137"; transcript_version "1"; gene_source "ensembl"; gene_biotype "protein_coding"; transcript_source "ensembl"; transcript_biotype "protein_coding";	3098
+tacc:/scratch/02535/reding/molly_arts/amazon$ head -2 SRR1166368_1.gff | grep "gene_source"
+KI519610.1	ensembl	gene	772	45558	.	+	.	gene_id "ENSPFOG00000016007"; gene_version "1"; gene_source "ensembl"; gene_biotype "protein_coding";	3098
+KI519610.1	ensembl	transcript	772	45558	.	+	.	gene_id "ENSPFOG00000016007"; gene_version "1"; transcript_id "ENSPFOT00000016137"; transcript_version "1"; gene_source "ensembl"; gene_biotype "protein_coding"; transcript_source "ensembl"; transcript_biotype "protein_coding";	3098
+
+The last number on each line is the number of reads that map to that feature.
+
+The problem here is that I want to just focus on genes, and the `.gff` files contains exons, UTRs, etc. that I don't care about.
+
+I thought that maybe I could just `grep` all line that contain `gene_name`, but `grep "^.*" SRR1166368_1.gff | wc -l` yeilds __831661__ (i.e. there are 831,661 lines in the gff file) while `grep "gene_name" SRR1166368_1.gff | wc -l` yeilds 742961 (way too many to represent different genes). Comparing `grep "gene_name" SRR1166368_1.gff | wc -l` to the lines that __don't__ contain `gene_name` (using inverse grep, i.e., `grep -v "gene_name" SRR1166368_1.gff | wc -l`) doesn't show patterns: exons, UTRs, CDS, etc. are represented in both. I don't know why some lines contain the gene name and other don't.
+
+Note that if we use `awk`--`cat P*.gtf | awk '$3=="gene"' | wc -l`--we get 24,354, which is probably pretty close to the number of genes. We can use the same `awk` command on our `.gff` files to extract only the lines containing genes and not more specific stuff that we might not want. (For a primer on how to read GTF files, look [here](http://useast.ensembl.org/info/website/upload/gff.html?redirect=no))
+
+Before we do that though, I'm going to re-do the call to `bedtools multicov` above. From the [bedtools docs] (http://bedtools.readthedocs.org/en/latest/content/tools/multicov.html), if you feed `multicov` more than one sorted bam file, it'll just add columns onto the resulting `.gff`, one column per `.bam` file. This will make it easier to wrangle the data for use is DESeq2 as long as we are careful keep track of what sample goes with what column.
+
+
+`echo "bedtools multicov -bams SRR1161450_1.bam.sort.bam SRR1165203_1.bam.sort.bam SRR1166368_1.bam.sort.bam SRR1166371_1.bam.sort.bam SRR1161451_1.bam.sort.bam SRR1166366_1.bam.sort.bam SRR1166369_1.bam.sort.bam SRR1166372_1.bam.sort.bam SRR1165201_1.bam.sort.bam SRR1166367_1.bam.sort.bam SRR1166370_1.bam.sort.bam -bed P*.gtf > results.gff" > bedtools_commands`
+
+`launcher_creator.py -j bedtools_commands -n bedtools_commands_job -l bedtools_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu`
+
+`qsub bedtools_commands_job`
+
+
 ---------------
 
 ### from the supplemental materials:
