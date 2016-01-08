@@ -540,15 +540,15 @@ Instead of doing what I did above, a (likely) better way of doing things is to u
 
 `qsub count_genes_job`
 
-~~Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:
+~~Before I downloaded the .gtf file; instead, to follow along with the intructions on TACC, I'm going to download the .gff file:~~
 
-`curl -O ftp://ftp.ensembl.org/pub/release-83/gff3/poecilia_formosa/Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
+~~`curl -O ftp://ftp.ensembl.org/pub/release-83/gff3/poecilia_formosa/Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`~~
 
-`gunzip Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`
+~~`gunzip Poecilia_formosa.PoeFor_5.1.2.83.gff3.gz`~~
 
-Rename:
+~~Rename:~~
 
-`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`~~
+~~`mv Poecilia_formosa.PoeFor_5.1.2.83.gff3 amazon.gff3`~~
 
 
 I'll use bedtools to count genes:
@@ -574,9 +574,9 @@ The last number on each line is the number of reads that map to that feature.
 
 The problem here is that I want to just focus on genes, and the `.gff` files contains exons, UTRs, etc. that I don't care about.
 
-I thought that maybe I could just `grep` all line that contain `gene_name`, but `grep "^.*" SRR1166368_1.gff | wc -l` yeilds __831661__ (i.e. there are 831,661 lines in the gff file) while `grep "gene_name" SRR1166368_1.gff | wc -l` yeilds 742961 (way too many to represent different genes). Comparing `grep "gene_name" SRR1166368_1.gff | wc -l` to the lines that __don't__ contain `gene_name` (using inverse grep, i.e., `grep -v "gene_name" SRR1166368_1.gff | wc -l`) doesn't show patterns: exons, UTRs, CDS, etc. are represented in both. I don't know why some lines contain the gene name and other don't.
+I thought that maybe I could just `grep` all line that contain `gene_name`, but `grep "^.*" SRR1166368_1.gff | wc -l` yeilds __831661__ (i.e. there are 831,661 lines in the gff file) while `grep "gene_name" SRR1166368_1.gff | wc -l` yeilds __742961__ (way too many to represent different genes). Comparing `grep "gene_name" SRR1166368_1.gff | wc -l` to the lines that __don't__ contain `gene_name` (using inverse grep, i.e., `grep -v "gene_name" SRR1166368_1.gff | wc -l`) doesn't show patterns: exons, UTRs, CDS, etc. are represented in both. I don't know why some lines contain the gene name and other don't.
 
-Note that if we use `awk`--`cat P*.gtf | awk '$3=="gene"' | wc -l`--we get 24,354, which is probably pretty close to the number of genes. We can use the same `awk` command on our `.gff` files to extract only the lines containing genes and not more specific stuff that we might not want. (For a primer on how to read GTF files, look [here](http://useast.ensembl.org/info/website/upload/gff.html?redirect=no))
+Note that if we use `awk`--`cat P*.gtf | awk '$3=="gene"' | wc -l`--we get __24,354__, which is probably pretty close to the number of genes. We can use the same `awk` command on our `.gff` files to extract only the lines containing genes and not more specific stuff that we might not want. (For a primer on how to read GTF files, look [here](http://useast.ensembl.org/info/website/upload/gff.html?redirect=no))
 
 Before we do that though, I'm going to re-do the call to `bedtools multicov` above. From the [bedtools docs] (http://bedtools.readthedocs.org/en/latest/content/tools/multicov.html), if you feed `multicov` more than one sorted bam file, it'll just add columns onto the resulting `.gff`, one column per `.bam` file. This will make it easier to wrangle the data for use is DESeq2 as long as we are careful keep track of what sample goes with what column.
 
