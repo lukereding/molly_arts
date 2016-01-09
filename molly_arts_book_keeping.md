@@ -598,14 +598,16 @@ Before we do that though, I'm going to re-do the call to `bedtools multicov` abo
 
 `echo "bedtools multicov -bams SRR1161450_1.bam.sort.bam SRR1165203_1.bam.sort.bam SRR1166368_1.bam.sort.bam SRR1166371_1.bam.sort.bam SRR1161451_1.bam.sort.bam SRR1166366_1.bam.sort.bam SRR1166369_1.bam.sort.bam SRR1166372_1.bam.sort.bam SRR1165201_1.bam.sort.bam SRR1166367_1.bam.sort.bam SRR1166370_1.bam.sort.bam -bed P*.gtf > results.gff" > bedtools_commands`
 
-`launcher_creator.py -j bedtools_commands -n bedtools_commands_job -l bedtools_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu`
+`launcher_creator.py -j bedtools_commands -n bedtools_commands_job -l bedtools_commands_job -a Sailfin_RNASeq -e lukereding@utexas.edu -q normal -t 10:00:00`
 
 `qsub bedtools_commands_job`
 
-From this we have `results.gff`. To make our lives simple, we wish to only extract features that represent genes. We also want to extract the ensembl gene IDs, gene names, and counts using this crazy one-liner:
+__note__: this took 6.5 hours to run for some reason.
 
+From this we have `results.gff`. To make our lives simple, we wish to only extract features that represent genes. We also want to extract the ensembl gene IDs, gene names, and counts. Note that for some reason the number of columns on each line can be difference depending on whether 'gene_name' or 'gene_source' is in the third column (using ; as a delimiter):
 
-`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,6- | cut -d' ' -f2,4- | sed 's,;,,g'`
+*still working on this...*
+`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{if($3 == " gene_biotype .*") {print shit} else if($3 != "gene_biotype") print $1,$2,$3 }`'
 
 > __Explanation:__
 `awk` is selecting lines in which the third column (tab-delimited) says 'gene'
