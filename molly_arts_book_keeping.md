@@ -607,7 +607,8 @@ __note__: this took 6.5 hours to run for some reason.
 From this we have `results.gff`. To make our lives simple, we wish to only extract features that represent genes. We also want to extract the ensembl gene IDs, gene names, and counts. Note that for some reason the number of columns on each line can be difference depending on whether 'gene_name' or 'gene_source' is in the third column (using ; as a delimiter):
 
 *still working on this...*
-`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{if($3 == " gene_biotype .*") {print shit} else if($3 != "gene_biotype") print $1,$2,$3 }`'
+`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{print $1,$2,$(NF)}' > counts.tab `
+
 
 > __Explanation:__
 `awk` is selecting lines in which the third column (tab-delimited) says 'gene'
