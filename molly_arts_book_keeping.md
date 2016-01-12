@@ -606,24 +606,37 @@ __note__: this took 6.5 hours to run for some reason.
 
 From this we have `results.gff`. To make our lives simple, we wish to only extract features that represent genes. We also want to extract the ensembl gene IDs, gene names, and counts. Note that for some reason the number of columns on each line can be difference depending on whether 'gene_name' or 'gene_source' is in the third column (using ; as a delimiter):
 
-*still working on this...*
-`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{print $1,$2,$(NF)}' > counts.tab `
+
+`cat results.gff | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{print $1,$2,$(NF)}' | sed 's,\",,g' > counts.tab`
 
 
 > __Explanation:__
-`awk` is selecting lines in which the third column (tab-delimited) says 'gene'
-`cut -f9-` is getting rid of the first 8 columns, which contain the chromosome and other stuff we don't really care about
-`cut -d';' -f1,3,6-` is changing the delimiter for `cut` from tabs (the default) to semi-colons. It then selects the 1st, 3rd, and 6th - end columns, which contain the gene ID, gene name, and counts for each individual
-`cut -d' ' -f2,4-` changes the delimiter to a space and selects only the gene id itself (getting rid of the 'gene_id' label), the gene name itself, and the counts
-`sed 's,;,,g'` gets rid of all semi-colons
+`cat` is pushing the `result.gff` file to stdout        
+`awk` is selecting lines in which the third column (tab-delimited) says 'gene'          
+`cut -f9-` is getting rid of the first 8 columns, which contain the chromosome and other stuff we don't really care about         
+`cut -d';' -f1,3,4,5-` is changing the delimiter for `cut` from tabs (the default) to semi-colons. It then selects the 1st, 3rd, and 5th - end columns, which contain the gene ID, gene name, and counts for each individual           
+`cut -d' ' -f2,4-` changes the delimiter to a space and selects only the gene id itself (getting rid of the 'gene_id' label), the gene name itself, and the counts           
+`awk -F ";" '{print $1,$2,$(NF)}'` is changing the default delimiter for `awk` from a tab to a semicolon, then printing the first, second, and last columns. Some of the rows contain an extra variable in the third column, and this part of the one-liner gets rid of it             
+`sed 's,\",,g'` gets rid of all double quotation marks           
 
-The resulting output looks like this:
 
->"ENSPFOG00000019075" "ZADH2"	576	552	771	619	416	562	420	346	483	550	450         
-"ENSPFOG00000019081" "TSHZ1 (2 of 3)"	4834	5302	5920	6451	3722	5348	3826	3295	3999	5397	3970             
-"ENSPFOG00000019083" "ZNF516 (2 of 2)"	926	689	960	804	471	967	610	483	616	846	854         
-"ENSPFOG00000019091" "znf236"	1988	1994	2462	2359	1363	1808	1696	1195	1498	1979	1807          
+So we've taken a file with lines that look like this: 
 
+> KI519610.1	ensembl	gene	772	45558	.	+	.	gene_id "ENSPFOG00000016007"; gene_version "1"; gene_source "ensembl"; gene_biotype "protein_coding";	2529	2920	3098	2600	1778	2569	1948	962	1849	2398	1511
+
+and turned it into something much more useful to us:
+
+> ENSPFOG00000016007  ensembl 	2529	2920	3098	2600	1778	2569	1948	962	1849	2398	1511
+
+`wc -l counts.tab` yeilds `24354`. 
+
+We now can transfer this file to our local machine, using `scp` from our local machine like
+
+`scp reding@lonestar.tacc.utexas.edu:/scratch/02535/reding/molly_arts/amazon/counts.tab /Users/lukereding/Desktop/molly_arts/`
+
+-------------
+
+At this point, I'm going to transition from `bash` to `R` and record what I'm doing in the `deseq_sailfin_analysis.Rmd` file in this repo.
 
 
 
