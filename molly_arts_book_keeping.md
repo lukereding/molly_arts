@@ -636,6 +636,31 @@ We now can transfer this file to our local machine, using `scp` from our local m
 
 -------------
 
+### creating annotation files to use for GO analyses
+
+
+The steps here are repeats of those listed above for getting GO terms from the guppy transcriptome. They are repeated here in the sake of completeness.
+
+Get the annotations:
+`wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz`         
+`wget ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz`
+
+`gunzip *.gz`
+
+`module load blast`      
+`echo "makeblastdb -in uniprot_sprot.fasta -dbtype prot" > make_index`
+`launcher_creator.py -j make_index -n make_index -l index -a Sailfin_RNASeq -e lukereding@utexas.edu`
+`qsub index`
+
+
+`echo "blastx -query amazon_genome.fasta -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out amazon_genome.br" > blast`                     
+`launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal`               
+`cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`          
+`qsub blast_job_36`       
+
+-----------------
+
+
 At this point, I'm going to transition from `bash` to `R` and record what I'm doing in the `deseq_sailfin_analysis.Rmd` file in this repo.
 
 
@@ -643,5 +668,7 @@ At this point, I'm going to transition from `bash` to `R` and record what I'm do
 ---------------
 
 ### from the supplemental materials:
+short read archive -- SRP036185
+
 _*for reference:*_         
 _(a) RNA-seq data collection and analysis RNA was extracted from whole brain tissue using RNeasy Lipid Tissue Mini Kit (Qiagen Hilden, Germany). We prepared separate RNA sequencing libraries from whole brains for each individual, using unique index sequences from the Illumina Tru-Seq RNA kit following manufacturers instructions. Sequencing libraries were constructed and sequenced on three lanes of an Illumina HiSeq 2000 at the HudsonAlpha Genomic Services Laboratory (Huntsville, Alabama) in April 2012. The reference P. reticulata assembly was constructed from a data set containing > 450 million 100-bp paired end reads, which were filtered for high quality sequence and normalized in-silico to compress the range in kmer abundance. We used SeqMan NGEN 4.1.2 (Madison, WI) [74,75] to perform the assembly. Contigs from the assembly were annotated by blastx queries against SwissProt (database downloaded Oct 6, 2012), UniProt/Trembl (Nov 28, 2012), and nr (Dec 11, 2012). Default parameters were used in the blastx queries, with e-value cutoff of 10-4 . The assembly and individual reads will be deposited in a publicly-available archive before publication. Reads were mapped to the reference assembly using Bowtie 2 v 2.0.0 on a server running Red Hat Enterprise Linux 6.1. We used a seed size of 20 bp, with no mismatches allowed in the seed (run options: -D 15 -R 2 -N 0 -L 20 -i S,1,0.75). We retained mappings with quality scores > 30 (< 0.001 probability that the read maps elsewhere in the reference), and applied an abundance filter to retain only transcripts represented by more than 1 count per million reads in at least three samples. This filtering resulted in 31,869 transcripts remaining in the data set. We used the number of reads mapping to each of those transcripts, along with TMM-normalized library sizes [76] to analyse differential expression. We obtained 462,537,724 100-bp reads that passed the machine quality filter, with 26,527,622 to 51,801,664 reads per sample, and average quality >35.7 for all samples. After removing low-abundance transcripts, 357,203,972 reads (76.1%) mapped to 31,869 unique transcripts in the reference transcriptome (see Supplementary Table S2 for sample-specific read data). We assumed a negative binomial distribution for the count data and the log link function [77]. We used likelihood ratios based on Type III estimable functions to evaluate the significance of fixed effects. To adjust for multiple tests, we used the adaptive falsediscovery rates of Benjamini & Hochberg [78], as implemented in SAS Proc Multtest, and FDR<0.05 as the criterion for significance, except as noted. General and generalized linear model were implemented in SAS v. 9.3 [60] running under Linux 2.6.32._

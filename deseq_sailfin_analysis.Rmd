@@ -9,7 +9,11 @@ output:
     theme: cerulean
 ---
 
-## DESeq2 with sailfin dataset
+# DESeq2 with sailfin dataset
+
+This document was creating by following along with the [tutorial for DESeq2](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.pdf).
+
+## reading in data
 
 Read in count data. I also get rid of the first column (the genes) and make them the row names, otherwise `DESeq` gets upset:
 
@@ -17,12 +21,28 @@ Read in count data. I also get rid of the first column (the genes) and make them
 library(DESeq2)
 library(magrittr)
 
-counts <- read.csv("/Users/lukereding/Documents/molly_arts/counts.csv")
+counts <- read.csv("/Users/lukereding/Desktop/molly_arts/counts.tab", sep = "\t", header=FALSE)
+head(counts)
 
+# save table of gene names and gene IDs
+gene_names <- counts[,1] %>% gsub("ENSP.*  ","",.) %>% gsub(" ","",.)
+gene_ids <- counts[,1] %>% gsub(" .*","",.) %>% gsub(" ","",.)
+write.csv(data.frame(gene_names,gene_ids),"/Users/lukereding/Desktop/molly_arts/gene_names_and_ids.csv", row.names=F)
+
+# some workarounds since the counts are separated by tabs by the gene IDs and gene names are separated by two spaces:
+#rownames(counts) <- counts[,1] %>% gsub("ENSP.*  ","",.) %>% gsub(" ","",.)
+counts[,1] %<>% gsub(" .*","",.) %>% gsub(" ","",.)
+
+# until I can solve the problem with gene repeats:
 rownames(counts) <- counts[,1]
 counts <- counts[,-1]
 
+colnames(counts) <- c("SRR1161450_1","SRR1165203_1","SRR1166368_1","SRR1166371_1","SRR1161451_1","SRR1166366_1","SRR1166369_1","SRR1166372_1","SRR1165201_1","SRR1166367_1","SRR1166370_1")
+
 head(counts)
+
+# save `counts`
+write.csv(counts,"/Users/lukereding/Desktop/molly_arts/counts.csv")
 ```
 
 We have `r ncol(counts)` columns in our count dataset, or `r ncol(counts)` individuals. 
@@ -31,37 +51,52 @@ Now I make a dataframe relating sample names to conditions:
 
 ```{r}
 
-sample_names <- c("SRR1166372_1", "SRR1166371_1","SRR1166370_1", "SRR1166369_1","SRR1166368_1", "SRR1166367_1", "SRR1166366_1", "SRR1165203_1", "SRR1165201_1", "SRR1161451_1", "SRR1161450_1")
-male_sizes <- c("small", "small", "small", "small", "small", "small", "intermediate", "intermediate", "intermediate", "intermediate", "intermediate")
-code <- c("BSM3", "BSM2", "BSM1", "BSA3", "BSA2", "BSA1", "BIM2", "BIM1", "BIA3", "BIA2", "BIA1")
-social <- c("multimale","multimale","multimale", "alone", "alone", "alone", "multimale", "multimale", "alone", "alone", "alone")
+male_sizes <- c("intermediate", "intermediate", "small", "small", "intermediate", "intermediate", "small", "small", "intermediate","small", "small")
+code <- c("BIA1", "BIM1", "BSA2", "BSM2", "BIA2", "BIM2", "BSA3", "BSM3", "BIA3", "BSA1", "BSM1")
+social <- c("alone","multimale", "alone", "multimale", "alone", "multimale", "alone", "multimale", "alone", "alone", "multimale")
 
 ## some error checking:
-if(sum(sample_names %in% names(counts)) != (ncol(counts))) stop("recheck sample names")
 if(length(male_sizes) != (ncol(counts))) stop("recheck male_sizes")
 if(length(male_sizes %>% factor %>% levels) != 2) stop("recheck male_sizes")
 if(length(code) != (ncol(counts))) stop("recheck code")
 if(length(social %>% factor %>% levels) != 2) stop("recheck social")
 if(length(social) != (ncol(counts))) stop("recheck social")
 
-conditions <- data.frame(sample_names, male_sizes, code, social)
-
+conditions <- data.frame(colnames(counts), male_sizes, code, social)
+colnames(conditions)[1] <- "sample_names"
 conditions %>% print
 
 ```
 
+## creating the DESeq2 object
 
-Now we construct the main `DESeq` object. I start out simple and model counts just based on whether the male was small or intermediate:
+Now we construct the main `DESeq` object. The statistical model models the counts as a function of a male's size, his social treatment, and the interaction between these two (defined in `design = ~ social + male_sizes + social*male_sizes`):
 
 ```{r}
 
-dds <- DESeqDataSetFromMatrix(countData = counts, colData = conditions, design = ~ social)
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = conditions, design = ~ social + male_sizes + social*male_sizes)
 
+# make sure your treatments are factors
 colData(dds)$social %<>% factor
+colData(dds)$male_sizes %<>% factor
+```
 
+For WGCNA, we'll need to use a matrix of normalized counts. Let's go ahead and save this now.
+
+```{r}
+
+x <- varianceStabilizingTransformation(dds)
+
+write.csv(assay(x),"/Users/lukereding/Desktop/molly_arts/counts_VST.csv")
+
+```
+
+To make sure that are results are interpretable and that we understand the directionality of the differentially expressed genes we find, it is useful to use the `relevel` function to assign one of the factor levels in each treatment as the baseline.
+
+```{r}
 # relevel to make the small male the baseline
-
 colData(dds)$social <- relevel(colData(dds)$social, "alone")
+colData(dds)$male_sizes <- relevel(colData(dds)$male_sizes, "small")
 
 ```
 
@@ -74,13 +109,35 @@ res <- results(dds)
 res <- res[order(res$padj),]
 head(res)
 
+# useful for later
+resultsNames(dds)
+```
+
+Note that the default for `alpha`--the significance cutoff--used in this function is 0.10. This implies that 10%of the genes that are significant in our analysis are false-positivies. To change this value to something more stringent, use `alpha = X` in the `results` function.
+
+# results
+
+### summary
+
+Here's a summary of our results:
+
+```{r}
+summary(res)
+```
+
+For a description of what the columns mean:
+
+```{r}
+
+mcols(res)$description
+
 ```
 
 Differentially expressed genes (based on adjusted p-value):
 
 ```{r}
 
-subset(res, res$padj < 0.05) %>% data.frame
+subset(res, res$padj < 0.05) %>% data.frame %>% head(20)
 
 ```
 
@@ -95,24 +152,317 @@ plotMA(dds,ylim=c(-2,2),main="DESeq2")
 ```
 
 
-```{}
-require(viridis)
-library("gplots")
+-----------------------
 
-op <- par(no.readonly = TRUE)
+## finding differentially expressed genes for our different factors
 
-rld <- rlogTransformation(dds, blind=TRUE)
-vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
+One thing we might be interested in doing is finding out what genes are significantly differently expressed by male size, social treatment, and their interaction.
 
-select <- order(rowMeans(counts(dds,normalized=TRUE)),decreasing=TRUE)[1:30]
-heatmap.2(counts(dds,normalized=TRUE)[select,], col = viridis(100), Rowv = FALSE, Colv = FALSE, scale="none", dendrogram="none", trace="none", margin=c(10,6))
-heatmap.2(assay(rld)[select,], col = viridis(100),
-Rowv = FALSE, Colv = FALSE, scale="none",
-dendrogram="none", trace="none", margin=c(10, 6))
-heatmap.2(assay(vsd)[select,], col = viridis(100),
-Rowv = FALSE, Colv = FALSE, scale="none",
-dendrogram="none", trace="none", margin=c(10, 6))
 
-par(op)
+But default, when you print your results, as we did with `head(res)` above, DESeq2 prints the p-values for whatever came last in your model statement--in our case, the interaction between male size and social treatment. We want to be able to create a similar data but populated with the log2-fold changes and p-values associated with a single factor. For example, we might want to know what genes are significantly differently expressed between small and intermediate males while controlling for social treatment. These are the genes significant for the factor `male_sizes` (and, technically, not also significant for the interaction). 
+
+To generate data frames with genes that are significant for size and social status, we add some arguments to the `results` function. To get the p-values and log fold changes for genes that are differentially expressed by size, the code ends up looking something like `results(dds, contrast=c("male_sizes","intermediate","small"))`. The `contrast` arugment takes a vector with three elements: the name of the factor, the level of the factor you want to use as the numerator in the log2-fold changes, and the level of the factor you want to be used as the denominator in the same.
+
+Note that extracting the results for continuous variables or interaction terms is done differenly. For how to do these, see my example below.
+
+
+
+### genes that are differentially expressed based on male size
+
+```{r}
+
+res.size <- results(dds, contrast=c("male_sizes","intermediate","small"))
+sum(res.size$padj < 0.05, na.rm=T)
+
+# creating a data of just the FDR-corrected significant genes
+male_size_table <- subset(res.size, res.size$padj < 0.05)
+
+# save the data as a csv file
+write.csv(as.data.frame(male_size_table),file="/Users/lukereding/Desktop/molly_arts/male_size_significant_genes.csv")
 ```
+
+So there are `r sum(res.size$padj < 0.05, na.rm=T)` genes are differentially expressed based on male size.
+
+
+
+### genes that are differentially expressed based on social treatment
+
+```{r}
+res.social <- results(dds, contrast=c("social","multimale","alone"))
+sum(res.social$padj < 0.05, na.rm=T)
+
+# creating a data of just the FDR-corrected significant genes
+social_table <- subset(res.social, res.social$padj < 0.05)
+
+# save the data as a csv file
+write.csv(as.data.frame(social_table),file="/Users/lukereding/Desktop/molly_arts/social_treatment_significant_genes.csv")
+```
+
+There are `r sum(res.social$padj < 0.05, na.rm=T)` genes that are significantly differently expressed by social treatment.
+
+
+### genes that are differentially expressed based on male size * social treatment interaction
+Look at genes significant for interaction:
+
+```{r}
+res.interaction <- results(dds, independentFiltering = FALSE, name = "socialmultimale.male_sizesintermediate")
+table(res.interaction$padj < 0.05)
+
+interaction_table <- subset(res.interaction, res.interaction$padj < 0.05)
+
+# save the data as a csv file
+write.csv(as.data.frame(interaction_table),file="/Users/lukereding/Desktop/molly_arts/interaction_significant_genes.csv")
+```
+
+------------
+
+## plotting results from individual genes
+
+For example, if we wanted to visualize the difference in counts between small and intermediate fish for the gene with the smallest p-value, we could use 
+
+```{r}
+require(viridis)
+plotCounts(dds, gene=which.min(male_size_table$padj), intgroup="male_sizes", pch=16, cex=1.2)
+```
+
+The results for this gene are surprisingly not clear cut and seem to be driven by the two "outlier" data points in the small group.
+
+Let's pick a different gene:
+
+```{r}
+x <- plotCounts(dds, gene=100, intgroup="male_sizes", pch=16, cex=1.2, returnData = T)
+```
+
+Plotting things the way I like them:
+
+```{r}
+require(redingPlot)
+beeStripBox(x$count, x$male_sizes, stats = F, ylab="counts")
+```
+
+
+## other visualizations
+
+From pg 21 -22 of tutorial:
+
+```{r}
+require(pheatmap)
+# apply a log transformation to the counts
+rld <- rlog(dds)
+
+# create a distance matrix
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+# change rownames
+rownames(sampleDistMatrix) <- paste(rld$male_sizes, rld$social, sep="-")
+colnames(sampleDistMatrix) <- NULL
+
+# create a heatmap
+pheatmap(sampleDistMatrix, clustering_distance_rows=sampleDists, clustering_distance_cols=sampleDists, col=viridis(100))
+```
+
+This heatmap doesn't make a whole lot of sense: fish with similar properties (size class and social treatment) don't really group together.
+
+This is doubly reflected in the PCA plot:
+
+```{r}
+
+plotPCA(rld, intgroup=c("male_sizes", "social"))
+
+```
+
+
+
+## GO analyses
+
+For this I'm following along with the tutorial [here](https://wikis.utexas.edu/display/bioiteam/GO+Enrichment+using+goseq) and use the R package GOseq.
+
+Note that I'm using GO terms specific to zebrafish.
+
+```{r}
+# install packages
+# source("http://bioconductor.org/biocLite.R")
+# biocLite("goseq")
+# #package to pull out annotated information about our genome and genes 
+# biocLite("geneLenDataBase")       
+# biocLite("org.Dr.eg.db")
+
+# load packages
+
+library("goseq")
+library("geneLenDataBase")
+library("org.Dr.eg.db")
+```
+
+We need three input files: the output from DESeq, the list of differentially expressed genes, and all genes we tested. Let's first test for GO enrichment in genes associated with male size.
+
+
+The deal here is that the *geneLenDataBase* does not support the amazon molly genome, for whatever reason. The gene IDs I'm using are specific to the Amazon molly--trying to use them on, for example, the zebrafish doesn't work. As a workaround, I'm going to download the zebrafish gtf file, [do the same manipulations as I did on the Amazon molly gtf file](https://github.com/lukereding/molly_arts/blob/master/molly_arts_book_keeping.md#using-bedtools-to-count-genes) (i.e. `cat Danio_rerio.GRCz10.83.gtf | awk '$3=="gene"' | cut -f9- | cut -d';' -f1,3,4,5- | cut -d' ' -f2,4- | cut -d ';' -f1,2,4- | awk -F ";" '{print $1,$2,$(NF)}' | sed 's,\",,g' > zebrafish.tab`), then try to match the amazon molly genes with the zebrafsih genes based on gene's common name. From there I can just swap out the amazon gene name with the zebrafish gene name.
+
+I downloaded the zebrafish gtf file from [here](ftp://ftp.ensembl.org/pub/release-83/gtf/danio_rerio/Danio_rerio.GRCz10.83.gtf.gz).
+
+
+
+```{r}
+degs <- male_size_table@rownames
+all_genes <- as.character(gene_names)
+
+# transpose
+DEG.vector <- c(t(degs))
+ALL.vector<-c(t(all_genes))
+
+gene.vector=as.integer(ALL.vector%in%DEG.vector)
+names(gene.vector)=ALL.vector 
+tail(gene.vector,40)
+```
+
+
+
+pwf=nullp(gene.vector,"danRer10","ensGene")
+
+
+
+```
+
+
+
+
+
+
+
+
+
+# using WGCNA
+
+## data input and cleaning
+
+This code is based off the WGCNA tutorials for R that can be found [here](https://labs.genetics.ucla.edu/horvath/CoexpressionNetwork/Rpackages/WGCNA/Tutorials/).
+
+```{r}
+
+# load in the data
+data <- read.csv("/Users/lukereding/Desktop/molly_arts/counts_VST.csv")
+head(data)
+gene_names <- data[,1]
+data <- data[,-1]
+
+# for some reason, WGCNA wants to data frame with the rows as individuals and the columns as genes
+# so we transpose the dataframe
+data<-t(data) 
+rownames(data) <- c("SRR1161450_1","SRR1165203_1","SRR1166368_1","SRR1166371_1","SRR1161451_1","SRR1166366_1","SRR1166369_1","SRR1166372_1","SRR1165201_1","SRR1166367_1","SRR1166370_1")
+colnames(data) <- gene_names
+data[1:11,1:5]
+```
+
+So how we have our variance-stabalized data. Each row is a gene, each column is one of 11 individuals.
+
+Do some basic pre-processing:
+
+```{r}
+require(WGCNA)
+allowWGCNAThreads()
+gsg = goodSamplesGenes(data, verbose = 3)
+gsg$allOK
+```
+
+If returns TRUE, then there are not too many samples with missing data. That's not the case for our data. This means that some of our genes have zero variance, which are uninformative and will mess things up later on. 
+
+To visalize an example of one of these genes:
+
+```{r}
+
+i <- which(!gsg$goodGenes)[1]
+data[,i]
+
+```
+
+Here we see that all the value for this gene are the same `r data[1,i] %>% round(3)`: there is no variance. So this is what the genes we're removing looks like. 
+
+Let's remove them:
+
+```{r}
+if (!gsg$allOK)
+{
+# Optionally, print the gene and sample names that were removed:
+if (sum(!gsg$goodGenes)>0)
+printFlush(paste("Removing genes:", paste(names(data)[!gsg$goodGenes], collapse = ", ")));
+if (sum(!gsg$goodSamples)>0)
+printFlush(paste("Removing samples:", paste(rownames(data)[!gsg$goodSamples], collapse = ", ")));
+# Remove the offending genes and samples from the data:
+data = data[gsg$goodSamples, gsg$goodGenes]
+}
+gsg = goodSamplesGenes(data, verbose = 3)
+```
+
+Now when we run `gsg$allOK`, it should return TRUE: `r gsg$allOK`.
+
+Now we cluster the sample the ensure there are no obvious outliers:
+
+
+```{r}
+
+sampleTree = hclust(dist(data), method = "average")
+
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="", cex.lab = 1.5,cex.axis = 1.5, cex.main = 2)
+
+```
+
+From this, we see there are no obvious outliers.
+
+Now we have to read in the trait data. I'm taking this from the Excel spreadsheet off the Dryad website associated with the paper.
+
+```{r}
+
+traits <- read.csv("/Users/lukereding/Desktop/molly_arts/molly_behavior.csv")
+traits$Focal.ID %<>% as.character()
+
+```
+
+Let's check to make sure the code names from the spreadsheet match those from the short read archive:
+
+```{r}
+
+subset(traits, RNA.SeqData == TRUE)$Focal.ID %in% conditions$code
+
+```
+
+There are some `FALSE`s there, meaning that the names on NCBI and the excel spreadsheet given don't match.
+
+At this point, I emailed the author so I can resolve this.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
