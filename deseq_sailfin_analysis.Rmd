@@ -302,6 +302,19 @@ The deal here is that the *geneLenDataBase* does not support the amazon molly ge
 
 I downloaded the zebrafish gtf file from [here](ftp://ftp.ensembl.org/pub/release-83/gtf/danio_rerio/Danio_rerio.GRCz10.83.gtf.gz).
 
+```{r}
+
+zebra <- read.table("/Users/lukereding/Desktop/molly_arts/zebrafish.tab",sep='\t')
+
+gene_names_zebra <- zebra[,1] %>% gsub("ENS.*  ","",.) %>% gsub(" ","",.)
+gene_ids_zebra <- zebra[,1] %>% gsub(" .*","",.) %>% gsub(" ","",.)
+
+amazon <- data.frame(gene_names,gene_ids)
+names(amazon) <- names(zebra)
+
+key <- merge(zebra,data.frame(gene_names,gene_ids))
+
+```
 
 
 ```{r}
