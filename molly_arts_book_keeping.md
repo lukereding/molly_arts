@@ -647,16 +647,29 @@ Get the annotations:
 
 `gunzip *.gz`
 
-`module load blast`      
-`echo "makeblastdb -in uniprot_sprot.fasta -dbtype prot" > make_index`
+~~`module load blast`~~      
+~~`echo "makeblastdb -in uniprot_sprot.fasta -dbtype prot" > make_index`
 `launcher_creator.py -j make_index -n make_index -l index -a Sailfin_RNASeq -e lukereding@utexas.edu`
-`qsub index`
+`qsub index`~~
 
 
-`echo "blastx -query amazon_genome.fasta -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out amazon_genome.br" > blast`                     
+~~`echo "blastx -query amazon_genome.fasta -db uniprot_sprot.fasta -evalue 0.0001 -num_threads 36 -num_descriptions 5 -num_alignments 5 -out amazon_genome.br" > blast`                     
 `launcher_creator.py -j blast -n blast_job -a Sailfin_RNASeq -e lukereding@utexas.edu -t 23:55:00 -q normal`               
 `cat launcher.sge | perl -pe 's/12way .+$/1way 36/' >blast_job_36`          
-`qsub blast_job_36`       
+`qsub blast_job_36~~
+
+
+This keeps timing out on me. We will use Misha's method of breaking up the genome into little chunks, running the chunks separately, then putting concatenating the results together.
+
+I'll use Misha's script `splitFasta.pl` to split it into 
+
+`perl splitFasta.pl amazon_genome.fasta 40`     
+`module load blast`
+`ls subset* | perl -pe 's/^(\S+)$/blastx -query $1 -db uniprot_sprot\.fasta -evalue 0\.0001 -num_threads 3 -num_descriptions 5 -num_alignments 5 -out $1.br/'>bl`      
+`launcher_creator.py -j bl -n split_blast_job -t 1:00:00 -a Sailfin_RNASeq -e lukereding@utexas.edu`        
+# change wayness
+`cat launcher.sge | sed 's,-pe 12way 48,-pe 4way 120,' > blast_job'`
+`qsub blast_job`
 
 -----------------
 

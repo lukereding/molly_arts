@@ -111,6 +111,7 @@ head(res)
 
 # useful for later
 resultsNames(dds)
+
 ```
 
 Note that the default for `alpha`--the significance cutoff--used in this function is 0.10. This implies that 10%of the genes that are significant in our analysis are false-positivies. To change this value to something more stringent, use `alpha = X` in the `results` function.
@@ -179,6 +180,7 @@ male_size_table <- subset(res.size, res.size$padj < 0.05)
 
 # save the data as a csv file
 write.csv(as.data.frame(male_size_table),file="/Users/lukereding/Desktop/molly_arts/male_size_significant_genes.csv")
+
 ```
 
 So there are `r sum(res.size$padj < 0.05, na.rm=T)` genes are differentially expressed based on male size.
@@ -306,20 +308,35 @@ I downloaded the zebrafish gtf file from [here](ftp://ftp.ensembl.org/pub/releas
 
 zebra <- read.table("/Users/lukereding/Desktop/molly_arts/zebrafish.tab",sep='\t')
 
-gene_names_zebra <- zebra[,1] %>% gsub("ENS.*  ","",.) %>% gsub(" ","",.)
-gene_ids_zebra <- zebra[,1] %>% gsub(" .*","",.) %>% gsub(" ","",.)
+gene_names <- zebra[,1] %>% gsub("ENS.*  ","",.) %>% gsub(" ","",.)
+gene_id <- zebra[,1] %>% gsub(" .*","",.) %>% gsub(" ","",.)
+zebra <- data.frame(gene_names, gene_id)
 
 amazon <- data.frame(gene_names,gene_ids)
-names(amazon) <- names(zebra)
+colnames(amazon) <- colnames(zebra)
 
-key <- merge(zebra,data.frame(gene_names,gene_ids))
+# get only unique gene names
+amazon <- subset(amazon, !duplicated(gene_names))
+zebra <- subset(zebra, !duplicated(gene_names))
+```
+
+We have a dataframe called `amazon` with the amazon molly gene names and gene IDs, and the same for the zebrafish in the `zebra` dataframe. Note that there are `r nrow(zebra)` genes in the zebrafish GTF file, `r nrow(amazon)` genes in the amazon file, and `r sum(amazon[,1] %in% zebra[,1])` gene names common to both GTF files. That means that using this apporach, we're losing `r nrow(amazon) - (sum(amazon[,1] %in% zebra[,1]))` genes from the amazon molly, perhaps not making it an ideal approach.
+
+We can go ahead and merge the two dataframes now into a dataframe called `key`:
+
+```{r}
+
+key <- merge(zebra, amazon, by = "gene_names")
+names(key)[2:3] <- c("gene_id_zebra", "gene_id_amazon")
+head(key)
 
 ```
 
+The resulting dataframe only has `nrow(key)` rows (genes).
 
 ```{r}
 degs <- male_size_table@rownames
-all_genes <- as.character(gene_names)
+all_genes <- as.character(key$gene_id_amazon %>% unique)
 
 # transpose
 DEG.vector <- c(t(degs))
@@ -328,6 +345,9 @@ ALL.vector<-c(t(all_genes))
 gene.vector=as.integer(ALL.vector%in%DEG.vector)
 names(gene.vector)=ALL.vector 
 tail(gene.vector,40)
+
+pwf=nullp(gene.vector,"danRer10","ensGene")
+
 ```
 
 
